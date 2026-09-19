@@ -1,0 +1,7 @@
+{
+  "name": "Dani Tech",
+  "description": "High-performance tech accessories for laptops, iPads and iPhones engineered with precision alloys and express Ghana delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
