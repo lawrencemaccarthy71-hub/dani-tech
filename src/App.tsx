@@ -12,7 +12,7 @@ import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { lazyWithRetry } from './utils/lazyWithRetry';
-import { subscribeToProducts } from './lib/productsDb';
+import { subscribeToProducts, getStoredProducts } from './lib/productsDb';
 
 // Code-split modals and admin suite with automatic network drop retry
 const CheckoutModal = lazyWithRetry(() =>
@@ -55,10 +55,9 @@ export function App() {
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [currency, setCurrency] = useState<Currency>('GHS');
 
-  // Products are now loaded from Firestore (shared, persistent, real-time)
-  // Falls back to hardcoded PRODUCTS while the first snapshot is loading
-  const [products, setProducts] = useState<Product[]>(PRODUCTS);
-  const [productsLoading, setProductsLoading] = useState(true);
+  // Dual-layer state: Loads immediately from local storage cache, synced live with Firestore
+  const [products, setProducts] = useState<Product[]>(getStoredProducts);
+  const [productsLoading, setProductsLoading] = useState(false);
 
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
@@ -85,22 +84,31 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // ── Firestore real-time product subscription ─────────────────────────────
-  // Subscribes on mount; every visitor gets live product updates automatically.
+  // ── Firestore real-time product subscription with local cache fallback ─────
   useEffect(() => {
+    const handleLocalUpdate = () => {
+      setProducts(getStoredProducts());
+    };
+    window.addEventListener('danitech_products_updated', handleLocalUpdate);
+
     const unsubscribe = subscribeToProducts(
       (freshProducts) => {
         setProducts(freshProducts);
         setProductsLoading(false);
       },
       (_err) => {
-        // On Firestore error fall back to hardcoded products
-        setProducts(PRODUCTS);
+        // Keep existing user products from cache on connection hiccup
+        setProducts(getStoredProducts());
         setProductsLoading(false);
       }
     );
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('danitech_products_updated', handleLocalUpdate);
+    };
   }, []);
+
 
   // Sync /about route with isAboutOpen state
   useEffect(() => {

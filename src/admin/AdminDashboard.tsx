@@ -12,7 +12,8 @@ import { verifyPassword, updateAdminPassword } from './auth';
 import { PRODUCTS } from '../data/products';
 import { formatPrice, WHATSAPP_PHONE_RAW, WHATSAPP_PHONE_FORMATTED } from '../utils/format';
 import { OrderRecord, Product } from '../types';
-import { subscribeToProducts, saveProduct, deleteProduct, replaceAllProducts } from '../lib/productsDb';
+import { subscribeToProducts, saveProduct, deleteProduct, replaceAllProducts, getStoredProducts } from '../lib/productsDb';
+
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -936,46 +937,53 @@ const SettingsSection: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [section, setSection] = useState<DashboardSection>('overview');
-  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  const [products, setProducts] = useState<Product[]>(getStoredProducts);
   const [orders, setOrders] = useState<OrderRecord[]>(loadOrders);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ── Firestore real-time product subscription ──────────────────────────────
+  // ── Firestore real-time product subscription with local cache fallback ─────
   useEffect(() => {
+    const handleLocalUpdate = () => {
+      setProducts(getStoredProducts());
+    };
+    window.addEventListener('danitech_products_updated', handleLocalUpdate);
+
     const unsubscribe = subscribeToProducts(
       (freshProducts) => setProducts(freshProducts),
-      () => setProducts(PRODUCTS)
+      () => setProducts(getStoredProducts())
     );
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('danitech_products_updated', handleLocalUpdate);
+    };
   }, []);
 
   const refreshOrders = () => setOrders(loadOrders());
 
   /**
    * handleUpdateProducts — called from ProductsSection for all mutations.
-   * Diffs old vs new to find what changed and writes only the delta to Firestore.
+   * Immediately saves locally and syncs to Firestore.
    */
   const handleUpdateProducts = async (newProducts: Product[]) => {
-    setProducts(newProducts); // optimistic UI update
-
     const oldIds = new Set(products.map((p) => p.id));
     const newIds = new Set(newProducts.map((p) => p.id));
 
-    // Products removed → delete from Firestore
+    setProducts(newProducts);
+
+    // Products removed → delete
     for (const oldProd of products) {
       if (!newIds.has(oldProd.id)) {
         await deleteProduct(oldProd.id);
       }
     }
 
-    // Products added or changed → upsert in Firestore
+    // Products added or changed → save
     for (const newProd of newProducts) {
-      const old = products.find((p) => p.id === newProd.id);
-      if (!old || JSON.stringify(old) !== JSON.stringify(newProd)) {
-        await saveProduct(newProd);
-      }
+      await saveProduct(newProd);
     }
   };
+
 
   const handleLogout = () => {
     clearAdminSession();
