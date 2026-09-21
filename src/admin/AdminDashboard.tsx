@@ -12,30 +12,16 @@ import { verifyPassword, updateAdminPassword } from './auth';
 import { PRODUCTS } from '../data/products';
 import { formatPrice, WHATSAPP_PHONE_RAW, WHATSAPP_PHONE_FORMATTED } from '../utils/format';
 import { OrderRecord, Product } from '../types';
+import { subscribeToProducts, saveProduct, deleteProduct, replaceAllProducts } from '../lib/productsDb';
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type DashboardSection = 'overview' | 'orders' | 'products' | 'settings';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function loadProducts(): Product[] {
-  try {
-    const raw = localStorage.getItem('danitech_products');
-    return raw ? JSON.parse(raw) : PRODUCTS;
-  } catch {
-    return PRODUCTS;
-  }
-}
-
-function saveProducts(products: Product[]) {
-  try {
-    localStorage.setItem('danitech_products', JSON.stringify(products));
-    window.dispatchEvent(new Event('danitech_products_updated'));
-  } catch (e) {
-    console.error('Failed to save products:', e);
-  }
-}
+// NOTE: Products are now loaded via Firestore real-time subscription.
+// See subscribeToProducts / saveProduct / deleteProduct in src/lib/productsDb.ts
 
 function loadOrders(): OrderRecord[] {
   try {
@@ -950,15 +936,45 @@ const SettingsSection: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [section, setSection] = useState<DashboardSection>('overview');
-  const [products, setProducts] = useState<Product[]>(loadProducts);
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [orders, setOrders] = useState<OrderRecord[]>(loadOrders);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // ── Firestore real-time product subscription ──────────────────────────────
+  useEffect(() => {
+    const unsubscribe = subscribeToProducts(
+      (freshProducts) => setProducts(freshProducts),
+      () => setProducts(PRODUCTS)
+    );
+    return () => unsubscribe();
+  }, []);
+
   const refreshOrders = () => setOrders(loadOrders());
 
-  const handleUpdateProducts = (newProducts: Product[]) => {
-    setProducts(newProducts);
-    saveProducts(newProducts);
+  /**
+   * handleUpdateProducts — called from ProductsSection for all mutations.
+   * Diffs old vs new to find what changed and writes only the delta to Firestore.
+   */
+  const handleUpdateProducts = async (newProducts: Product[]) => {
+    setProducts(newProducts); // optimistic UI update
+
+    const oldIds = new Set(products.map((p) => p.id));
+    const newIds = new Set(newProducts.map((p) => p.id));
+
+    // Products removed → delete from Firestore
+    for (const oldProd of products) {
+      if (!newIds.has(oldProd.id)) {
+        await deleteProduct(oldProd.id);
+      }
+    }
+
+    // Products added or changed → upsert in Firestore
+    for (const newProd of newProducts) {
+      const old = products.find((p) => p.id === newProd.id);
+      if (!old || JSON.stringify(old) !== JSON.stringify(newProd)) {
+        await saveProduct(newProd);
+      }
+    }
   };
 
   const handleLogout = () => {

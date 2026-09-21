@@ -12,6 +12,7 @@ import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { lazyWithRetry } from './utils/lazyWithRetry';
+import { subscribeToProducts } from './lib/productsDb';
 
 // Code-split modals and admin suite with automatic network drop retry
 const CheckoutModal = lazyWithRetry(() =>
@@ -53,14 +54,11 @@ const AdminLoadingFallback: React.FC = () => (
 export function App() {
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [currency, setCurrency] = useState<Currency>('GHS');
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem('danitech_products');
-      return saved ? JSON.parse(saved) : PRODUCTS;
-    } catch {
-      return PRODUCTS;
-    }
-  });
+
+  // Products are now loaded from Firestore (shared, persistent, real-time)
+  // Falls back to hardcoded PRODUCTS while the first snapshot is loading
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  const [productsLoading, setProductsLoading] = useState(true);
 
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
@@ -87,6 +85,23 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // ── Firestore real-time product subscription ─────────────────────────────
+  // Subscribes on mount; every visitor gets live product updates automatically.
+  useEffect(() => {
+    const unsubscribe = subscribeToProducts(
+      (freshProducts) => {
+        setProducts(freshProducts);
+        setProductsLoading(false);
+      },
+      (_err) => {
+        // On Firestore error fall back to hardcoded products
+        setProducts(PRODUCTS);
+        setProductsLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
   // Sync /about route with isAboutOpen state
   useEffect(() => {
     if (location.pathname === '/about') {
@@ -108,7 +123,7 @@ export function App() {
     }
   };
 
-  // Sync cart to localStorage
+  // Sync cart to localStorage (cart is per-device — that's intentional)
   useEffect(() => {
     try {
       localStorage.setItem('danitech_cart', JSON.stringify(cartItems));
@@ -117,25 +132,8 @@ export function App() {
     }
   }, [cartItems]);
 
-  // Sync products state if modified elsewhere
-  useEffect(() => {
-    const handleStorageChange = () => {
-      try {
-        const saved = localStorage.getItem('danitech_products');
-        if (saved) setProducts(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to reload products:', e);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('danitech_products_updated', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('danitech_products_updated', handleStorageChange);
-    };
-  }, []);
-
   // Keyboard shortcut for search
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
