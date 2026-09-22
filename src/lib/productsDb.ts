@@ -1,6 +1,7 @@
 // src/lib/productsDb.ts
 // Robust persistence layer with dual storage: Cloud Firestore + LocalStorage fallback.
 // Guarantees products NEVER disappear on refresh, even if network or Firestore credentials are misconfigured.
+// Fixed: removed INITIALIZED_KEY logic that was incorrectly wiping products on fresh Firestore databases.
 
 import {
   collection,
@@ -18,7 +19,6 @@ import { PRODUCTS } from '../data/products';
 
 const COLLECTION = 'products';
 const STORAGE_KEY = 'danitech_products';
-const INITIALIZED_KEY = 'danitech_db_initialized';
 
 /**
  * Load cached products from localStorage, falling back to default PRODUCTS.
@@ -28,7 +28,7 @@ export function getStoredProducts(): Product[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {
     console.warn('[Dani Tech] Could not read local products cache:', e);
@@ -50,7 +50,9 @@ export function persistLocalProducts(products: Product[]): void {
 
 /**
  * Subscribe to real-time product updates from Firestore.
- * Updates local cache on every snapshot and handles errors gracefully without resetting user data.
+ * - When Firestore is empty: seeds it from localStorage (or defaults). Never wipes local data.
+ * - When Firestore has data: syncs to local cache and updates UI in real-time.
+ * - On Firestore error: falls back to localStorage silently.
  */
 export function subscribeToProducts(
   onData: (products: Product[]) => void,
@@ -65,31 +67,27 @@ export function subscribeToProducts(
       (snapshot) => {
         if (!isSubscribed) return;
 
-        // If Firestore is completely empty on very first install
         if (snapshot.empty) {
-          const hasInitialized = localStorage.getItem(INITIALIZED_KEY);
-          if (!hasInitialized) {
-            // First time setup: seed the defaults into Firestore
-            localStorage.setItem(INITIALIZED_KEY, 'true');
-            seedDefaultProducts().catch((err) =>
-              console.warn('[Dani Tech] Seed error:', err)
-            );
-            return;
-          }
-          // If already initialized and empty, the user intentionally deleted all products
-          persistLocalProducts([]);
-          onData([]);
+          // Firestore is empty — seed it with whatever we have locally (or defaults).
+          // This handles: new database creation, first deploy, or cleared database.
+          // We NEVER wipe local data here — always push UP to Firestore.
+          const localProducts = getStoredProducts();
+          console.log('[Dani Tech] Firestore empty — seeding', localProducts.length, 'products to cloud...');
+          replaceAllProducts(localProducts).catch((err) =>
+            console.warn('[Dani Tech] Seed error:', err)
+          );
+          // Don't call onData yet — replaceAllProducts will trigger a fresh snapshot
           return;
         }
 
-        localStorage.setItem(INITIALIZED_KEY, 'true');
+        // Firestore has data — use it as the source of truth
         const firestoreProducts: Product[] = snapshot.docs.map((d) => d.data() as Product);
+        console.log('[Dani Tech] ✅ Firestore synced —', firestoreProducts.length, 'products loaded');
         persistLocalProducts(firestoreProducts);
         onData(firestoreProducts);
       },
       (err) => {
-        console.warn('[Dani Tech] Firestore live sync unavailable, using local cache:', err.message);
-        // DO NOT overwrite user products with defaults! Keep existing products from localStorage.
+        console.warn('[Dani Tech] Firestore sync unavailable, using local cache:', err.message);
         onData(getStoredProducts());
         onError?.(err);
       }
@@ -110,7 +108,7 @@ export function subscribeToProducts(
  * Save (create or update) a single product in both Firestore and local cache.
  */
 export async function saveProduct(product: Product): Promise<void> {
-  // 1. Immediately update local cache so UI is instant and persistent
+  // 1. Immediately update local cache so UI is instant
   const current = getStoredProducts();
   const index = current.findIndex((p) => p.id === product.id);
   const updated = index >= 0
@@ -122,8 +120,9 @@ export async function saveProduct(product: Product): Promise<void> {
   try {
     const ref = doc(db, COLLECTION, product.id);
     await setDoc(ref, product, { merge: true });
+    console.log('[Dani Tech] ✅ Product saved to Firestore:', product.name);
   } catch (err) {
-    console.warn('[Dani Tech] Firestore save warning (stored locally):', err);
+    console.warn('[Dani Tech] ⚠️ Firestore save failed (saved locally only):', err);
   }
 }
 
@@ -140,8 +139,9 @@ export async function deleteProduct(productId: string): Promise<void> {
   try {
     const ref = doc(db, COLLECTION, productId);
     await deleteDoc(ref);
+    console.log('[Dani Tech] ✅ Product deleted from Firestore:', productId);
   } catch (err) {
-    console.warn('[Dani Tech] Firestore delete warning (deleted locally):', err);
+    console.warn('[Dani Tech] ⚠️ Firestore delete failed (deleted locally only):', err);
   }
 }
 
@@ -158,13 +158,14 @@ export async function replaceAllProducts(products: Product[]): Promise<void> {
       batch.set(ref, p);
     });
     await batch.commit();
+    console.log('[Dani Tech] ✅ All', products.length, 'products synced to Firestore');
   } catch (err) {
-    console.warn('[Dani Tech] Firestore replace batch warning:', err);
+    console.warn('[Dani Tech] ⚠️ Firestore batch write failed:', err);
   }
 }
 
 /**
- * One-time seed of initial catalog.
+ * One-time seed of initial catalog into Firestore.
  */
 export async function seedDefaultProducts(): Promise<void> {
   await replaceAllProducts(PRODUCTS);
