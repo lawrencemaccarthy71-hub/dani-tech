@@ -314,6 +314,44 @@ const emptyProduct: Partial<Product> = {
   },
 };
 
+function compressImage(file: File, maxWidth = 1000, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const elem = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+
+        elem.width = width;
+        elem.height = height;
+        const ctx = elem.getContext('2d');
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(elem.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
 const ProductsSection: React.FC<{
   products: Product[];
   onUpdateProducts: (newProducts: Product[]) => void;
@@ -324,6 +362,7 @@ const ProductsSection: React.FC<{
     product: emptyProduct,
   });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const handleToggleStock = (id: string) => {
     const updated = products.map((p) =>
@@ -338,27 +377,30 @@ const ProductsSection: React.FC<{
     setDeleteConfirmId(null);
   };
 
-  const handleResetDefaults = () => {
+  const handleResetDefaults = async () => {
     if (window.confirm('Reset catalogue to factory default products?')) {
+      await replaceAllProducts(PRODUCTS);
       onUpdateProducts(PRODUCTS);
     }
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Please choose an image file under 2MB for optimal performance.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      try {
+        setIsCompressing(true);
+        // Automatically resize and compress image to crisp, lightweight web format (~80-150KB)
+        const compressedDataUrl = await compressImage(file, 1000, 0.82);
         setModal((prev) => ({
           ...prev,
-          product: { ...prev.product, image: reader.result as string },
+          product: { ...prev.product, image: compressedDataUrl },
         }));
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Failed to process image:', err);
+        alert('Could not process this image file. Please try another photo.');
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -659,17 +701,20 @@ const ProductsSection: React.FC<{
                   />
 
                   <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a2a2c] hover:bg-[#353437] text-[#e5e1e4] text-[11px] font-medium border border-[#424656]/40 transition-colors cursor-pointer">
+                    <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a2a2c] hover:bg-[#353437] text-[#e5e1e4] text-[11px] font-medium border border-[#424656]/40 transition-colors ${isCompressing ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
                       <Upload className="w-3.5 h-3.5 text-[#00dce6]" />
-                      <span>Upload from Device</span>
+                      <span>{isCompressing ? 'Optimizing photo...' : 'Take Photo / Upload Image'}</span>
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={isCompressing}
                         onChange={handleImageFileChange}
                         className="hidden"
                       />
                     </label>
-                    <span className="text-[10px] text-[#8c90a1] font-mono">PNG, JPG, WebP up to 2MB</span>
+                    <span className="text-[10px] text-[#8c90a1] font-mono">
+                      {isCompressing ? 'Compressing for web...' : 'Any photo size automatically optimized'}
+                    </span>
                   </div>
 
                   {/* Live Image Preview */}
