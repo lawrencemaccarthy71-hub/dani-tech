@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, MessageSquare, Check, Eye } from 'lucide-react';
+import { ShoppingBag, MessageSquare, Check, Eye, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import { Product, Currency } from '../types';
 import { formatPrice, generateProductWhatsAppUrl } from '../utils/format';
 
@@ -17,11 +17,49 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   onQuickView,
 }) => {
   const [added, setAdded] = useState(false);
+  const [currentImgIdx, setCurrentImgIdx] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  const images = (product.images && product.images.length > 0)
+    ? product.images
+    : [product.image];
+  const hasMultipleImages = images.length > 1;
 
   const handleAdd = () => {
     onAddToCart(product);
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
+  };
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImgIdx((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImgIdx((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || !hasMultipleImages) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+
+    if (Math.abs(diff) > 35) {
+      if (diff > 0) {
+        // Swipe left -> next image
+        setCurrentImgIdx((prev) => (prev + 1) % images.length);
+      } else {
+        // Swipe right -> previous image
+        setCurrentImgIdx((prev) => (prev - 1 + images.length) % images.length);
+      }
+    }
+    setTouchStartX(null);
   };
 
   const getBadgeStyle = () => {
@@ -39,8 +77,13 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
 
   return (
     <div className="group flex flex-col rounded-2xl bg-[#201f21] p-5 transition-all duration-300 hover:-translate-y-1.5 shadow-md border border-[#424656]/25 hover:border-[#ffb77d]/40">
-      {/* Product Image Frame */}
-      <div className="relative w-full aspect-square rounded-xl bg-[#1c1b1d] overflow-hidden mb-4 flex items-center justify-center p-6 border border-[#424656]/20">
+      {/* Product Image Frame with Multi-Photo Carousel & Swipe */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="relative w-full aspect-square rounded-xl bg-[#1c1b1d] overflow-hidden mb-4 flex items-center justify-center p-6 border border-[#424656]/20 select-none"
+      >
+        {/* Badges */}
         {product.inStock === false ? (
           <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-950/80 border border-red-500/40 shadow-sm flex items-center gap-1.5 z-10">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
@@ -48,39 +91,102 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
           </div>
         ) : product.badge ? (
           <div
-            className={`absolute top-3 left-3 px-2.5 py-1 rounded-full backdrop-blur-sm text-[10px] font-mono font-medium uppercase tracking-wider ${getBadgeStyle()}`}
+            className={`absolute top-3 left-3 px-2.5 py-1 rounded-full backdrop-blur-sm text-[10px] font-mono font-medium uppercase tracking-wider z-10 ${getBadgeStyle()}`}
           >
             {product.badge}
           </div>
         ) : null}
 
-        {/* Quick View overlay trigger on image hover */}
+        {/* Top-Right: Photo counter indicator when multiple photos exist */}
+        {hasMultipleImages && (
+          <div className="absolute top-3 right-11 px-2 py-0.5 rounded-full bg-[#131315]/80 backdrop-blur-md text-[#c2c6d8] text-[9px] font-mono border border-[#424656]/40 flex items-center gap-1 z-10">
+            <Layers className="w-3 h-3 text-[#00dce6]" />
+            <span>{currentImgIdx + 1}/{images.length}</span>
+          </div>
+        )}
+
+        {/* Quick View overlay trigger on image */}
         <button
           onClick={() => onQuickView(product)}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-[#131315]/80 hover:bg-[#131315] text-[#c2c6d8] hover:text-white flex items-center justify-center backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all cursor-pointer shadow-sm"
-          title="Quick Specs & Details"
-          aria-label="Quick View Specs"
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-[#131315]/80 hover:bg-[#131315] text-[#c2c6d8] hover:text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-sm z-10"
+          title="See More & Specifications"
+          aria-label="See More Specs"
         >
           <Eye className="w-4 h-4" />
         </button>
 
+        {/* Next / Prev Photo Arrows (Visible on card hover or for quick flipping) */}
+        {hasMultipleImages && (
+          <>
+            <button
+              type="button"
+              onClick={prevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#131315]/70 hover:bg-[#131315] text-[#e5e1e4] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer shadow-md"
+              title="Previous photo"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={nextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#131315]/70 hover:bg-[#131315] text-[#e5e1e4] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer shadow-md"
+              title="Next photo"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        {/* Active Product Image */}
         <img
-          src={product.image}
-          alt={product.name}
+          src={images[currentImgIdx] || product.image}
+          alt={`${product.name} - Photo ${currentImgIdx + 1}`}
           loading="lazy"
           decoding="async"
-          className={`w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 cursor-pointer ${
+          className={`w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 cursor-pointer ${
             product.inStock === false ? 'opacity-60 grayscale-[30%]' : ''
           }`}
           onClick={() => onQuickView(product)}
         />
+
+        {/* Bottom Dot Indicators for Multiple Photos */}
+        {hasMultipleImages && (
+          <div className="absolute bottom-2 inset-x-0 flex items-center justify-center gap-1.5 z-10">
+            {images.map((_, dotIdx) => (
+              <button
+                key={dotIdx}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImgIdx(dotIdx);
+                }}
+                className={`transition-all rounded-full ${
+                  dotIdx === currentImgIdx
+                    ? 'w-4 h-1.5 bg-[#0066ff]'
+                    : 'w-1.5 h-1.5 bg-[#8c90a1]/40 hover:bg-[#c2c6d8]'
+                }`}
+                aria-label={`View photo ${dotIdx + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Details & Specs */}
       <div className="flex flex-col flex-1">
-        <span className="text-[11px] font-mono text-[#8c90a1] uppercase tracking-wider mb-1">
-          {product.categoryLabel}
-        </span>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] font-mono text-[#8c90a1] uppercase tracking-wider">
+            {product.categoryLabel}
+          </span>
+          {hasMultipleImages && (
+            <span
+              onClick={() => onQuickView(product)}
+              className="text-[10px] font-mono text-[#00dce6] hover:underline cursor-pointer"
+            >
+              See {images.length} photos
+            </span>
+          )}
+        </div>
 
         <h3
           onClick={() => onQuickView(product)}

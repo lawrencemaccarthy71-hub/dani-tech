@@ -13,6 +13,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { subscribeToProducts, getStoredProducts } from './lib/productsDb';
+import { createOrder } from './lib/ordersDb';
 
 // Code-split modals and admin suite with automatic network drop retry
 const CheckoutModal = lazyWithRetry(() =>
@@ -210,17 +211,12 @@ export function App() {
         items: orderDetails.items,
         totalGhs: orderDetails.totalGhs,
         placedAt: new Date().toISOString(),
+        status: 'pending',
       };
 
-      try {
-        const existingRaw = localStorage.getItem('danitech_orders');
-        const existing: OrderRecord[] = existingRaw ? JSON.parse(existingRaw) : [];
-        const updated = [newOrder, ...existing];
-        localStorage.setItem('danitech_orders', JSON.stringify(updated));
-        window.dispatchEvent(new Event('danitech_orders_updated'));
-      } catch (e) {
-        console.error('Failed to save order to localStorage:', e);
-      }
+      createOrder(newOrder).catch((e) => {
+        console.error('Failed to create order in Firestore/local:', e);
+      });
     }
 
     setCartItems([]);
@@ -325,7 +321,7 @@ export function App() {
             onClose={() => setIsSearchOpen(false)}
             products={products}
             currency={currency}
-            onSelectProduct={(p) => setQuickViewProduct(p)}
+            onSelectProduct={(p: Product) => setQuickViewProduct(p)}
             onAddToCart={handleAddToCart}
           />
         </Suspense>

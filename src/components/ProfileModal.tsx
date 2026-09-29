@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { X, Search, CheckCircle, Package, Clock, HelpCircle, PhoneCall } from 'lucide-react';
-import { WHATSAPP_PHONE_RAW } from '../utils/format';
+import React, { useState, useEffect } from 'react';
+import { X, Search, CheckCircle, Package, Clock, HelpCircle, PhoneCall, AlertCircle, ShoppingBag } from 'lucide-react';
+import { WHATSAPP_PHONE_RAW, formatPrice } from '../utils/format';
+import { searchOrder } from '../lib/ordersDb';
+import { OrderRecord, OrderStatus } from '../types';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -14,26 +16,67 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   recentOrderId,
 }) => {
   const [trackQuery, setTrackQuery] = useState(recentOrderId || '');
-  const [trackResult, setTrackResult] = useState<null | {
-    id: string;
-    status: string;
-    courier: string;
-    destination: string;
-    eta: string;
-  }>(null);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [order, setOrder] = useState<OrderRecord | null>(null);
+
+  useEffect(() => {
+    if (isOpen && recentOrderId) {
+      setTrackQuery(recentOrderId);
+      handleSearch(recentOrderId);
+    }
+  }, [isOpen, recentOrderId]);
 
   if (!isOpen) return null;
 
-  const handleTrack = (e: React.FormEvent) => {
+  const handleSearch = async (term: string) => {
+    if (!term.trim()) return;
+    setLoading(true);
+    setSearched(true);
+    try {
+      const found = await searchOrder(term);
+      setOrder(found);
+    } catch (e) {
+      console.error('Order tracking search error:', e);
+      setOrder(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTrackSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!trackQuery) return;
-    setTrackResult({
-      id: trackQuery.toUpperCase(),
-      status: 'Dispatched from Dani Tech East Legon Hub',
-      courier: 'Express Courier (Accra Delivery Fleet)',
-      destination: 'Client Address / Ghana Post GPS',
-      eta: 'Arriving in approx. 45-60 mins',
-    });
+    handleSearch(trackQuery);
+  };
+
+  const getStatusBadge = (status?: OrderStatus) => {
+    switch (status) {
+      case 'delivered':
+        return { label: 'Delivered', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      case 'dispatched':
+        return { label: 'In Transit', color: 'bg-[#007e85]/20 text-[#00dce6] border-[#007e85]/30' };
+      case 'processing':
+        return { label: 'Processing', color: 'bg-[#0066ff]/20 text-[#60a5fa] border-[#0066ff]/30' };
+      case 'cancelled':
+        return { label: 'Cancelled', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' };
+      default:
+        return { label: 'Pending Verification', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' };
+    }
+  };
+
+  const getStatusDescription = (status?: OrderStatus) => {
+    switch (status) {
+      case 'delivered':
+        return 'Package handed over and completed.';
+      case 'dispatched':
+        return 'En route with dispatch rider / regional courier.';
+      case 'processing':
+        return 'Inspected and packaged at Dani Tech East Legon Hub.';
+      case 'cancelled':
+        return 'This order has been cancelled.';
+      default:
+        return 'Order received. Awaiting express dispatch assignment.';
+    }
   };
 
   return (
@@ -60,45 +103,106 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
           {/* Track an order form */}
           <div>
             <label className="block text-xs font-mono text-[#c2c6d8] uppercase tracking-wider mb-2">
-              Track Dispatch Status
+              Live Dispatch Tracking
             </label>
-            <form onSubmit={handleTrack} className="flex gap-2">
+            <form onSubmit={handleTrackSubmit} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Enter Dani Tech Order # (e.g. DANI-384920)"
+                placeholder="Enter Order # (e.g. DANI-...) or Phone Number"
                 value={trackQuery}
                 onChange={(e) => setTrackQuery(e.target.value)}
                 className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#131315] border border-[#424656]/40 text-[#e5e1e4] text-xs font-mono focus:outline-none focus:border-[#0066ff]"
               />
               <button
                 type="submit"
-                className="px-4 py-2.5 rounded-xl bg-[#0066ff] hover:bg-[#0054d6] text-white text-xs font-medium transition-colors cursor-pointer"
+                disabled={loading}
+                className="px-4 py-2.5 rounded-xl bg-[#0066ff] hover:bg-[#0054d6] text-white text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
               >
-                Track
+                {loading ? 'Searching...' : 'Track'}
               </button>
             </form>
           </div>
 
-          {trackResult && (
-            <div className="p-4 bg-[#201f21] rounded-xl border border-[#424656]/30 space-y-2 text-xs">
-              <div className="flex items-center justify-between text-[#00dce6] font-mono">
-                <span className="flex items-center gap-1.5">
+          {/* Found Order Card */}
+          {order && (
+            <div className="p-4 bg-[#201f21] rounded-xl border border-[#424656]/30 space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[#00dce6] font-mono font-bold">
                   <Package className="w-4 h-4" />
-                  <strong>{trackResult.id}</strong>
+                  <span>{order.id}</span>
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#007e85]/20 text-[#00dce6]">
-                  In Transit
+                <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-mono border ${getStatusBadge(order.status).color}`}>
+                  {getStatusBadge(order.status).label}
                 </span>
               </div>
-              <p className="text-[#e5e1e4] font-medium">{trackResult.status}</p>
-              <div className="text-[#c2c6d8] space-y-1 text-[11px]">
-                <div>Courier: {trackResult.courier}</div>
-                <div>ETA: <strong className="text-[#ffb77d]">{trackResult.eta}</strong></div>
+
+              <p className="text-[#e5e1e4] font-medium">
+                {getStatusDescription(order.status)}
+              </p>
+
+              <div className="text-[#c2c6d8] space-y-1.5 text-[11px] pt-2 border-t border-[#424656]/20">
+                <div className="flex justify-between">
+                  <span className="text-[#8c90a1]">Recipient:</span>
+                  <span className="text-[#e5e1e4] font-medium">{order.name} ({order.phone})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8c90a1]">Destination:</span>
+                  <span className="text-[#e5e1e4] text-right truncate max-w-[200px]">{order.address}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8c90a1]">Delivery Option:</span>
+                  <span className="text-[#00dce6]">{order.delivery.name.split('(')[0]}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8c90a1]">Est. Delivery:</span>
+                  <span className="text-[#ffb77d] font-mono font-bold">{order.delivery.estimatedTime}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8c90a1]">Total Amount:</span>
+                  <span className="text-[#ffb77d] font-mono font-bold">{formatPrice(order.totalGhs, 'GHS')}</span>
+                </div>
               </div>
+
+              {/* Items summary */}
+              <div className="pt-2 border-t border-[#424656]/20">
+                <p className="text-[10px] font-mono text-[#8c90a1] uppercase mb-1.5">Items in Package</p>
+                <div className="space-y-1">
+                  {order.items.map((item) => (
+                    <div key={item.product.id} className="flex justify-between text-[11px] text-[#c2c6d8]">
+                      <span className="truncate max-w-[220px]">{item.product.name} ×{item.quantity}</span>
+                      <span className="font-mono text-[#ffb77d]">{formatPrice(item.product.priceGhs * item.quantity, 'GHS')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* WhatsApp direct help for this order */}
+              <div className="pt-2">
+                <a
+                  href={`https://wa.me/${WHATSAPP_PHONE_RAW}?text=Hello%20Dani%20Tech,%20following%20up%20on%20my%20order%20*${order.id}*%20for%20${encodeURIComponent(order.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 rounded-lg bg-[#1f2e26] hover:bg-[#263c30] text-[#4ade80] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>Chat Dispatch Rider on WhatsApp</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Searched but not found */}
+          {searched && !order && !loading && (
+            <div className="p-4 bg-[#201f21]/60 rounded-xl border border-[#424656]/20 text-center space-y-1.5 text-xs">
+              <AlertCircle className="w-5 h-5 text-amber-400 mx-auto" />
+              <p className="text-[#e5e1e4] font-medium">No order found matching "{trackQuery}"</p>
+              <p className="text-[#8c90a1] text-[11px]">
+                Please verify the Order ID or phone number used during checkout.
+              </p>
             </div>
           )}
 

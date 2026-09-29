@@ -6,13 +6,14 @@ import {
   CheckCircle, Clock, AlertCircle, Eye, EyeOff, Save,
   Loader2, Trash2, ChevronDown, ChevronRight, Menu, X,
   BarChart2, RefreshCw, Plus, Edit, RotateCcw, Upload, Image as ImageIcon,
+  Copy, PhoneCall,
 } from 'lucide-react';
-import { clearAdminSession } from './auth';
-import { verifyPassword, updateAdminPassword } from './auth';
+import { clearAdminSession, verifyPassword, updateAdminPassword } from './auth';
 import { PRODUCTS } from '../data/products';
 import { formatPrice, WHATSAPP_PHONE_RAW, WHATSAPP_PHONE_FORMATTED } from '../utils/format';
-import { OrderRecord, Product } from '../types';
+import { OrderRecord, Product, OrderStatus } from '../types';
 import { subscribeToProducts, saveProduct, deleteProduct, replaceAllProducts, getStoredProducts } from '../lib/productsDb';
+import { subscribeToOrders, updateOrderStatus, deleteOrder as deleteOrderDb, getStoredOrders } from '../lib/ordersDb';
 
 
 
@@ -190,98 +191,267 @@ const OverviewSection: React.FC<{
 
 const OrdersSection: React.FC<{ orders: OrderRecord[]; onRefresh: () => void }> = ({ orders, onRefresh }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const sorted = [...orders].sort((a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime());
+  const [statusFilter, setStatusFilter] = useState<'all' | OrderStatus>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const sorted = [...orders].sort(
+    (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime()
+  );
+
+  const filtered = statusFilter === 'all'
+    ? sorted
+    : sorted.filter((o) => (o.status || 'pending') === statusFilter);
+
+  const pendingCount = orders.filter((o) => (o.status || 'pending') === 'pending').length;
+  const processingCount = orders.filter((o) => o.status === 'processing').length;
+  const dispatchedCount = orders.filter((o) => o.status === 'dispatched').length;
+  const deliveredCount = orders.filter((o) => o.status === 'delivered').length;
+
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    setUpdatingId(orderId);
+    try {
+      await updateOrderStatus(orderId, newStatus);
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (orderId: string) => {
+    try {
+      await deleteOrderDb(orderId);
+      setDeleteConfirmId(null);
+    } catch (err) {
+      console.error('Failed to delete order:', err);
+    }
+  };
+
+  const handleCopyCourierSlip = (order: OrderRecord) => {
+    const text = `DANI TECH DISPATCH SLIP
+Order ID: #${order.id}
+Recipient: ${order.name}
+Phone: ${order.phone}
+Delivery Address: ${order.address}
+Delivery Tier: ${order.delivery.name}
+Package Items:
+${order.items.map((i) => ` - ${i.product.name} (x${i.quantity})`).join('\n')}
+Total Value: GH₵ ${order.totalGhs}`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedId(order.id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const getStatusBadge = (status?: OrderStatus) => {
+    switch (status) {
+      case 'delivered':
+        return { label: 'Delivered', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      case 'dispatched':
+        return { label: 'In Transit', color: 'bg-[#007e85]/20 text-[#00dce6] border-[#007e85]/30' };
+      case 'processing':
+        return { label: 'Processing', color: 'bg-[#0066ff]/20 text-[#60a5fa] border-[#0066ff]/30' };
+      case 'cancelled':
+        return { label: 'Cancelled', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' };
+      default:
+        return { label: 'Pending', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' };
+    }
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="font-['Geist',sans-serif] text-xl font-bold text-[#e5e1e4]">Orders</h2>
-          <p className="text-xs text-[#8c90a1] mt-0.5 font-mono">{orders.length} total orders received</p>
+          <h2 className="font-['Geist',sans-serif] text-xl font-bold text-[#e5e1e4]">Orders Management</h2>
+          <p className="text-xs text-[#8c90a1] mt-0.5 font-mono">
+            {orders.length} total orders across Cloud Firestore & local cache
+          </p>
         </div>
-        <button onClick={onRefresh} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f21] hover:bg-[#2a2a2c] text-[#c2c6d8] text-xs font-medium border border-[#424656]/30 transition-colors cursor-pointer">
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        <button
+          onClick={onRefresh}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#c2c6d8] text-xs font-medium border border-[#424656]/30 transition-colors cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Sync Cloud
         </button>
       </div>
 
-      {sorted.length === 0 ? (
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {[
+          { id: 'all', label: `All (${orders.length})` },
+          { id: 'pending', label: `Pending (${pendingCount})` },
+          { id: 'processing', label: `Processing (${processingCount})` },
+          { id: 'dispatched', label: `In Transit (${dispatchedCount})` },
+          { id: 'delivered', label: `Delivered (${deliveredCount})` },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setStatusFilter(tab.id as any)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+              statusFilter === tab.id
+                ? 'bg-[#0066ff] text-white'
+                : 'bg-[#1c1b1d] text-[#8c90a1] hover:text-[#e5e1e4] border border-[#424656]/20'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="rounded-2xl bg-[#1c1b1d] border border-[#424656]/25 py-16 text-center">
           <ShoppingBag className="w-10 h-10 text-[#353437] mx-auto mb-3" />
-          <p className="text-[#8c90a1] text-sm">No orders yet.</p>
-          <p className="text-[#424656] text-xs mt-1 font-mono">Orders placed via the checkout flow will appear here.</p>
+          <p className="text-[#8c90a1] text-sm">No orders found in this filter.</p>
+          <p className="text-[#424656] text-xs mt-1 font-mono">Customer checkout orders sync here live.</p>
         </div>
       ) : (
-        <div className="rounded-2xl bg-[#1c1b1d] border border-[#424656]/25 overflow-hidden">
-          {sorted.map((order, idx) => (
-            <div key={order.id} className={idx > 0 ? 'border-t border-[#424656]/20' : ''}>
-              {/* Row */}
-              <button
-                onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
-                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-[#201f21] transition-colors text-left cursor-pointer"
-              >
-                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 items-center">
-                  <div>
-                    <span className="text-xs font-mono font-bold text-[#00dce6]">{order.id}</span>
-                    <p className="text-[11px] text-[#8c90a1] mt-0.5">{formatDate(order.placedAt)}</p>
-                  </div>
-                  <div className="hidden sm:block">
-                    <p className="text-xs font-medium text-[#e5e1e4]">{order.name}</p>
-                    <p className="text-[11px] text-[#8c90a1]">{order.phone}</p>
-                  </div>
-                  <div className="hidden sm:block">
-                    <p className="text-xs text-[#c2c6d8]">{order.delivery.name.split('(')[0].trim()}</p>
-                    <p className="text-[11px] text-[#8c90a1]">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-sm font-mono font-bold text-[#ffb77d]">{formatPrice(order.totalGhs, 'GHS')}</span>
-                  {expandedId === order.id
-                    ? <ChevronDown className="w-4 h-4 text-[#8c90a1]" />
-                    : <ChevronRight className="w-4 h-4 text-[#8c90a1]" />}
-                </div>
-              </button>
+        <div className="rounded-2xl bg-[#1c1b1d] border border-[#424656]/25 overflow-hidden divide-y divide-[#424656]/20">
+          {filtered.map((order) => {
+            const currentBadge = getStatusBadge(order.status);
+            const customerCleanPhone = order.phone.replace(/\D/g, '');
 
-              {/* Expanded details */}
-              {expandedId === order.id && (
-                <div className="px-5 pb-5 bg-[#131315]/50 border-t border-[#424656]/20 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 text-xs">
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between"><span className="text-[#8c90a1]">Recipient</span><span className="text-[#e5e1e4] font-medium">{order.name}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8c90a1]">Phone</span><span className="text-[#e5e1e4]">{order.phone}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8c90a1]">Address</span><span className="text-[#c2c6d8] text-right max-w-[160px]">{order.address}</span></div>
+            return (
+              <div key={order.id} className="hover:bg-[#201f21]/40 transition-colors">
+                {/* Order Row */}
+                <div
+                  onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
+                  className="w-full flex items-center gap-4 px-5 py-4 text-left cursor-pointer"
+                >
+                  <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-4 items-center">
+                    <div>
+                      <span className="text-xs font-mono font-bold text-[#00dce6]">{order.id}</span>
+                      <p className="text-[11px] text-[#8c90a1] mt-0.5">{formatDate(order.placedAt)}</p>
                     </div>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between"><span className="text-[#8c90a1]">Delivery</span><span className="text-[#c2c6d8] text-right max-w-[160px]">{order.delivery.name.split('(')[0]}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8c90a1]">Est. Time</span><span className="text-[#00dce6]">{order.delivery.estimatedTime}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8c90a1]">Total Paid</span><span className="text-[#ffb77d] font-mono font-bold">{formatPrice(order.totalGhs, 'GHS')}</span></div>
+
+                    <div>
+                      <p className="text-xs font-medium text-[#e5e1e4] truncate">{order.name}</p>
+                      <p className="text-[11px] text-[#8c90a1] font-mono">{order.phone}</p>
+                    </div>
+
+                    <div className="hidden sm:block">
+                      <p className="text-xs text-[#c2c6d8] truncate">{order.delivery.name.split('(')[0]}</p>
+                      <p className="text-[11px] text-[#8c90a1]">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</p>
+                    </div>
+
+                    <div>
+                      <span className={`inline-flex text-[10px] font-mono px-2 py-0.5 rounded-full border ${currentBadge.color}`}>
+                        {currentBadge.label}
+                      </span>
                     </div>
                   </div>
-                  {/* Items */}
-                  <div className="pt-2 border-t border-[#424656]/20">
-                    <p className="text-[10px] font-mono text-[#8c90a1] uppercase tracking-wider mb-2">Items Ordered</p>
-                    <div className="space-y-1.5">
-                      {order.items.map((item) => (
-                        <div key={item.product.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-[#1c1b1d] border border-[#424656]/20">
-                          <img src={item.product.image} alt={item.product.name} className="w-8 h-8 object-contain rounded" />
-                          <span className="flex-1 text-xs text-[#c2c6d8] truncate">{item.product.name}</span>
-                          <span className="text-[11px] text-[#8c90a1]">×{item.quantity}</span>
-                          <span className="text-xs font-mono text-[#ffb77d]">{formatPrice(item.product.priceGhs * item.quantity, 'GHS')}</span>
-                        </div>
-                      ))}
-                    </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm font-mono font-bold text-[#ffb77d]">{formatPrice(order.totalGhs, 'GHS')}</span>
+                    {expandedId === order.id
+                      ? <ChevronDown className="w-4 h-4 text-[#8c90a1]" />
+                      : <ChevronRight className="w-4 h-4 text-[#8c90a1]" />}
                   </div>
-                  {/* WhatsApp follow-up */}
-                  <a
-                    href={`https://wa.me/${WHATSAPP_PHONE_RAW}?text=Hello%20Dani%20Tech,%20checking%20on%20order%20${order.id}%20for%20${encodeURIComponent(order.name)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-[#00dce6] hover:underline mt-1"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" /> Follow up on WhatsApp
-                  </a>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Expanded Details & Actions */}
+                {expandedId === order.id && (
+                  <div className="px-5 pb-5 pt-3 bg-[#131315]/60 border-t border-[#424656]/20 space-y-4">
+                    {/* Status Changer Bar */}
+                    <div className="p-3 rounded-xl bg-[#1c1b1d] border border-[#424656]/30 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[#8c90a1] uppercase text-[10px]">Change Status:</span>
+                        <select
+                          value={order.status || 'pending'}
+                          disabled={updatingId === order.id}
+                          onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#131315] border border-[#424656]/40 text-[#e5e1e4] font-medium focus:outline-none focus:border-[#0066ff] cursor-pointer"
+                        >
+                          <option value="pending">⏳ Pending Verification</option>
+                          <option value="processing">📦 Packaging at East Legon</option>
+                          <option value="dispatched">🚚 In Transit (Dispatched)</option>
+                          <option value="delivered">✅ Delivered to Client</option>
+                          <option value="cancelled">❌ Cancelled</option>
+                        </select>
+                        {updatingId === order.id && <span className="text-[10px] text-[#00dce6] font-mono animate-pulse">Updating...</span>}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCourierSlip(order)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a2a2c] hover:bg-[#353437] text-[#c2c6d8] hover:text-white text-xs font-medium border border-[#424656]/30 transition-colors"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-[#ffb77d]" />
+                          <span>{copiedId === order.id ? 'Copied Slip!' : 'Copy Courier Slip'}</span>
+                        </button>
+
+                        <a
+                          href={`https://wa.me/${customerCleanPhone}?text=Hello%20${encodeURIComponent(order.name)},%20this%20is%20Dani%20Tech%20Accra.%20Regarding%20your%20order%20*${order.id}*:`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1f2e26] hover:bg-[#263c30] text-[#4ade80] text-xs font-semibold border border-[#22c55e]/30 transition-colors"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>WhatsApp Client</span>
+                        </a>
+
+                        {deleteConfirmId === order.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDelete(order.id)}
+                              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(null)}
+                              className="px-2 py-1.5 bg-[#2a2a2c] text-[#8c90a1] text-xs rounded-lg"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirmId(order.id)}
+                            className="p-1.5 rounded-lg text-[#8c90a1] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            title="Delete Order Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="space-y-1.5 bg-[#1c1b1d]/60 p-3 rounded-xl border border-[#424656]/20">
+                        <div className="flex justify-between"><span className="text-[#8c90a1]">Recipient:</span><span className="text-[#e5e1e4] font-medium">{order.name}</span></div>
+                        <div className="flex justify-between"><span className="text-[#8c90a1]">Phone:</span><span className="text-[#e5e1e4] font-mono">{order.phone}</span></div>
+                        <div className="flex justify-between"><span className="text-[#8c90a1]">Address:</span><span className="text-[#c2c6d8] text-right max-w-[200px]">{order.address}</span></div>
+                      </div>
+
+                      <div className="space-y-1.5 bg-[#1c1b1d]/60 p-3 rounded-xl border border-[#424656]/20">
+                        <div className="flex justify-between"><span className="text-[#8c90a1]">Delivery Tier:</span><span className="text-[#c2c6d8] text-right">{order.delivery.name.split('(')[0]}</span></div>
+                        <div className="flex justify-between"><span className="text-[#8c90a1]">Est. Delivery:</span><span className="text-[#00dce6]">{order.delivery.estimatedTime}</span></div>
+                        <div className="flex justify-between"><span className="text-[#8c90a1]">Total Amount:</span><span className="text-[#ffb77d] font-mono font-bold">{formatPrice(order.totalGhs, 'GHS')}</span></div>
+                      </div>
+                    </div>
+
+                    {/* Ordered items */}
+                    <div className="p-3 rounded-xl bg-[#1c1b1d]/40 border border-[#424656]/20">
+                      <p className="text-[10px] font-mono text-[#8c90a1] uppercase mb-2">Order Line Items ({order.items.length})</p>
+                      <div className="space-y-1.5">
+                        {order.items.map((item) => (
+                          <div key={item.product.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#131315] border border-[#424656]/20">
+                            <img src={item.product.image} alt={item.product.name} className="w-9 h-9 object-contain rounded" />
+                            <span className="flex-1 text-xs text-[#c2c6d8] truncate">{item.product.name}</span>
+                            <span className="text-[11px] text-[#8c90a1] font-mono">×{item.quantity}</span>
+                            <span className="text-xs font-mono text-[#ffb77d] font-bold">{formatPrice(item.product.priceGhs * item.quantity, 'GHS')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -363,6 +533,7 @@ const ProductsSection: React.FC<{
   });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
 
   const handleToggleStock = (id: string) => {
     const updated = products.map((p) =>
@@ -385,16 +556,29 @@ const ProductsSection: React.FC<{
   };
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
       try {
         setIsCompressing(true);
-        // Automatically resize and compress image to crisp, lightweight web format (~80-150KB)
-        const compressedDataUrl = await compressImage(file, 1000, 0.82);
-        setModal((prev) => ({
-          ...prev,
-          product: { ...prev.product, image: compressedDataUrl },
-        }));
+        const fileArr = Array.from(files);
+        const compressedUrls = await Promise.all(
+          fileArr.map((f) => compressImage(f, 1000, 0.82))
+        );
+
+        setModal((prev) => {
+          const currentList = prev.product.images && prev.product.images.length > 0
+            ? [...prev.product.images]
+            : (prev.product.image ? [prev.product.image] : []);
+          const merged = [...currentList, ...compressedUrls];
+          return {
+            ...prev,
+            product: {
+              ...prev.product,
+              images: merged,
+              image: merged[0] || prev.product.image,
+            },
+          };
+        });
       } catch (err) {
         console.error('Failed to process image:', err);
         alert('Could not process this image file. Please try another photo.');
@@ -404,19 +588,89 @@ const ProductsSection: React.FC<{
     }
   };
 
+  const handleSetCoverPhoto = (idx: number) => {
+    setModal((prev) => {
+      const currentList = prev.product.images && prev.product.images.length > 0
+        ? [...prev.product.images]
+        : (prev.product.image ? [prev.product.image] : []);
+      if (idx >= 0 && idx < currentList.length) {
+        const [selected] = currentList.splice(idx, 1);
+        currentList.unshift(selected);
+        return {
+          ...prev,
+          product: {
+            ...prev.product,
+            images: currentList,
+            image: currentList[0],
+          },
+        };
+      }
+      return prev;
+    });
+  };
+
+  const handleRemovePhoto = (idx: number) => {
+    setModal((prev) => {
+      const currentList = prev.product.images && prev.product.images.length > 0
+        ? [...prev.product.images]
+        : (prev.product.image ? [prev.product.image] : []);
+      currentList.splice(idx, 1);
+      return {
+        ...prev,
+        product: {
+          ...prev.product,
+          images: currentList,
+          image: currentList[0] || '',
+        },
+      };
+    });
+  };
+
+  const handleAddUrlPhoto = () => {
+    if (!imageUrlInput.trim()) return;
+    const url = imageUrlInput.trim();
+    setModal((prev) => {
+      const currentList = prev.product.images && prev.product.images.length > 0
+        ? [...prev.product.images]
+        : (prev.product.image ? [prev.product.image] : []);
+      const merged = [...currentList, url];
+      return {
+        ...prev,
+        product: {
+          ...prev.product,
+          images: merged,
+          image: merged[0] || url,
+        },
+      };
+    });
+    setImageUrlInput('');
+  };
+
   const handleSaveModal = (e: React.FormEvent) => {
     e.preventDefault();
     const p = modal.product;
     if (!p.name || !p.priceGhs) return;
 
+    const currentImages = p.images && p.images.length > 0
+      ? p.images
+      : (p.image ? [p.image] : ['https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=600&q=80']);
+    const primaryCover = currentImages[0];
+
     if (modal.isEditing && p.id) {
       const updated = products.map((item) =>
-        item.id === p.id ? ({ ...item, ...p } as Product) : item
+        item.id === p.id
+          ? ({
+              ...item,
+              ...p,
+              image: primaryCover,
+              images: currentImages,
+            } as Product)
+          : item
       );
       onUpdateProducts(updated);
     } else {
       const newProduct: Product = {
-        id: p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `prod-${Date.now()}`,
+        id: (p.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'prod') + '-' + Date.now().toString(36),
         name: p.name || 'New Hardware Item',
         category: p.category || 'laptops',
         categoryLabel: p.categoryLabel || 'Hardware',
@@ -425,7 +679,8 @@ const ProductsSection: React.FC<{
         badge: p.badge,
         badgeColor: p.badgeColor || 'secondary',
         featureTag: p.featureTag || 'In Stock',
-        image: p.image || 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=600&q=80',
+        image: primaryCover,
+        images: currentImages,
         description: p.description || '',
         inStock: p.inStock ?? true,
         specs: {
@@ -438,6 +693,7 @@ const ProductsSection: React.FC<{
       onUpdateProducts([newProduct, ...products]);
     }
     setModal({ isOpen: false, isEditing: false, product: emptyProduct });
+    setImageUrlInput('');
   };
 
   return (
@@ -684,69 +940,110 @@ const ProductsSection: React.FC<{
 
               <div>
                 <label className="block text-[11px] font-mono text-[#c2c6d8] uppercase mb-1">
-                  Product Image (Web Link or Device Upload)
+                  Product Photos (Supports Multiple Photos & Camera Uploads)
                 </label>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Paste image URL (e.g. https://... or /assets/...)"
-                    value={modal.product.image || ''}
-                    onChange={(e) =>
-                      setModal({
-                        ...modal,
-                        product: { ...modal.product, image: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-[#131315] border border-[#424656]/40 text-[#e5e1e4] font-mono text-[11px] focus:outline-none focus:border-[#0066ff]"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add photo by URL (e.g. https://... or /assets/...)"
+                      value={imageUrlInput}
+                      onChange={(e) => setImageUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddUrlPhoto();
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 rounded-xl bg-[#131315] border border-[#424656]/40 text-[#e5e1e4] font-mono text-[11px] focus:outline-none focus:border-[#0066ff]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddUrlPhoto}
+                      className="px-3 py-2 rounded-xl bg-[#2a2a2c] hover:bg-[#353437] text-white text-xs font-medium cursor-pointer transition-colors"
+                    >
+                      Add URL
+                    </button>
+                  </div>
 
                   <div className="flex items-center gap-3">
-                    <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a2a2c] hover:bg-[#353437] text-[#e5e1e4] text-[11px] font-medium border border-[#424656]/40 transition-colors ${isCompressing ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                    <label className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2a2a2c] hover:bg-[#353437] text-[#e5e1e4] text-[11px] font-medium border border-[#424656]/40 transition-colors ${isCompressing ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
                       <Upload className="w-3.5 h-3.5 text-[#00dce6]" />
-                      <span>{isCompressing ? 'Optimizing photo...' : 'Take Photo / Upload Image'}</span>
+                      <span>{isCompressing ? 'Optimizing Photos...' : 'Take Photos / Upload (Multi-Select)'}</span>
                       <input
                         type="file"
                         accept="image/*"
+                        multiple
                         disabled={isCompressing}
                         onChange={handleImageFileChange}
                         className="hidden"
                       />
                     </label>
                     <span className="text-[10px] text-[#8c90a1] font-mono">
-                      {isCompressing ? 'Compressing for web...' : 'Any photo size automatically optimized'}
+                      {isCompressing ? 'Compressing for web...' : 'Select multiple photos at once'}
                     </span>
                   </div>
 
-                  {/* Live Image Preview */}
-                  {modal.product.image && (
-                    <div className="flex items-center gap-3 p-2 rounded-xl bg-[#131315] border border-[#424656]/30">
-                      <div className="w-12 h-12 rounded-lg bg-[#1c1b1d] p-1 border border-[#424656]/20 flex items-center justify-center shrink-0">
-                        <img
-                          src={modal.product.image}
-                          alt="Preview"
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=600&q=80';
-                          }}
-                        />
+                  {/* Multi-Photo Thumbnails Gallery */}
+                  {((modal.product.images && modal.product.images.length > 0) || modal.product.image) && (
+                    <div className="p-3 rounded-xl bg-[#131315] border border-[#424656]/30 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-[#00dce6]">
+                          Photo Gallery ({modal.product.images?.length || (modal.product.image ? 1 : 0)} photos)
+                        </span>
+                        <span className="text-[#ffb77d] text-[10px]">
+                          ★ First photo is Cover Image
+                        </span>
                       </div>
-                      <div className="flex-1 min-w-0 text-[11px]">
-                        <p className="text-[#e5e1e4] font-medium truncate">Image Selected</p>
-                        <p className="text-[10px] text-[#00dce6] font-mono">Preview Ready</p>
+
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                        {(modal.product.images && modal.product.images.length > 0
+                          ? modal.product.images
+                          : (modal.product.image ? [modal.product.image] : [])
+                        ).map((url, idx) => (
+                          <div
+                            key={idx}
+                            className={`relative group aspect-square rounded-xl bg-[#1c1b1d] p-1.5 border transition-all ${
+                              idx === 0
+                                ? 'border-[#0066ff] ring-2 ring-[#0066ff]/40 shadow-sm'
+                                : 'border-[#424656]/30'
+                            }`}
+                          >
+                            <img
+                              src={url}
+                              alt={`Photo ${idx + 1}`}
+                              className="w-full h-full object-contain rounded-lg"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src =
+                                  'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=600&q=80';
+                              }}
+                            />
+                            {idx === 0 ? (
+                              <span className="absolute top-1 left-1 bg-[#0066ff] text-white text-[8px] font-mono px-1.5 py-0.5 rounded-full font-bold">
+                                COVER
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetCoverPhoto(idx)}
+                                className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 bg-[#201f21] hover:bg-[#0066ff] text-white text-[8px] font-mono px-1.5 py-0.5 rounded transition-all cursor-pointer"
+                                title="Set as main cover image"
+                              >
+                                Set Cover
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(idx)}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all cursor-pointer shadow-sm"
+                              title="Delete photo"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setModal((prev) => ({
-                            ...prev,
-                            product: { ...prev.product, image: '' },
-                          }))
-                        }
-                        className="text-[11px] text-[#8c90a1] hover:text-red-400 px-2 py-1 cursor-pointer"
-                      >
-                        Clear
-                      </button>
                     </div>
                   )}
                 </div>
@@ -983,7 +1280,7 @@ export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [section, setSection] = useState<DashboardSection>('overview');
   const [products, setProducts] = useState<Product[]>(getStoredProducts);
-  const [orders, setOrders] = useState<OrderRecord[]>(loadOrders);
+  const [orders, setOrders] = useState<OrderRecord[]>(getStoredOrders);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Firestore real-time product subscription with local cache fallback ─────
@@ -1004,7 +1301,25 @@ export const AdminDashboard: React.FC = () => {
     };
   }, []);
 
-  const refreshOrders = () => setOrders(loadOrders());
+  // ── Firestore real-time orders subscription ─────
+  useEffect(() => {
+    const handleLocalOrders = () => {
+      setOrders(getStoredOrders());
+    };
+    window.addEventListener('danitech_orders_updated', handleLocalOrders);
+
+    const unsubscribeOrders = subscribeToOrders(
+      (freshOrders) => setOrders(freshOrders),
+      () => setOrders(getStoredOrders())
+    );
+
+    return () => {
+      unsubscribeOrders();
+      window.removeEventListener('danitech_orders_updated', handleLocalOrders);
+    };
+  }, []);
+
+  const refreshOrders = () => setOrders(getStoredOrders());
 
   /**
    * handleUpdateProducts — called from ProductsSection for all mutations.

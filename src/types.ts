@@ -13,6 +13,7 @@ export interface Product {
   badgeColor?: 'secondary' | 'tertiary' | 'primary' | 'outline';
   featureTag: string;
   image: string;
+  images?: string[];
   description: string;
   specs: {
     material: string;
@@ -42,6 +43,8 @@ export interface DeliveryOption {
 
 export type MoMoNetwork = 'MTN' | 'TELECEL' | 'AT';
 
+export type OrderStatus = 'pending' | 'processing' | 'dispatched' | 'delivered' | 'cancelled';
+
 export interface OrderRecord {
   id: string;
   name: string;
@@ -51,4 +54,9 @@ export interface OrderRecord {
   items: CartItem[];
   totalGhs: number;
   placedAt: string; // ISO timestamp
+  status?: OrderStatus;
+  paymentMethod?: 'momo' | 'card' | 'whatsapp' | 'cod';
+  momoNetwork?: MoMoNetwork;
+  notes?: string;
 }
+
