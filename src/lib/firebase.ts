@@ -1,28 +1,39 @@
 // src/lib/firebase.ts
 // Firebase app initialisation — reads config from Vite environment variables.
-// All VITE_FIREBASE_* vars must be set in Vercel → Environment Variables.
-// Build: 2026-09-21T23:31Z (cache bust)
+// Automatically cleans accidental quotes, commas, or semicolons from pasted env vars.
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore } from 'firebase/firestore';
 
-const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-// Log connection status so we can verify in browser console
-if (firebaseConfig.apiKey) {
-  console.log('[Dani Tech] ✅ Firebase connected — project:', firebaseConfig.projectId);
-} else {
-  console.error('[Dani Tech] ❌ Firebase env vars missing — products will not sync across devices');
+function cleanEnv(val: unknown): string {
+  if (typeof val !== 'string') return '';
+  return val.trim().replace(/^["']+|["',;]+$/g, '').trim();
 }
 
-// Prevent duplicate initialisation in HMR dev environments
+const firebaseConfig = {
+  apiKey:            cleanEnv(import.meta.env.VITE_FIREBASE_API_KEY),
+  authDomain:        cleanEnv(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  projectId:         cleanEnv(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  storageBucket:     cleanEnv(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: cleanEnv(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+  appId:             cleanEnv(import.meta.env.VITE_FIREBASE_APP_ID),
+};
+
+if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+  console.log('[Dani Tech] ✅ Firebase initialized for project:', firebaseConfig.projectId);
+} else {
+  console.error('[Dani Tech] ❌ Firebase configuration missing or incomplete.');
+}
+
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
+// Initialize Firestore with ignoreUndefinedProperties to prevent write rejections
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      ignoreUndefinedProperties: true,
+    });
+  } catch {
+    return getFirestore(app);
+  }
+})();
