@@ -10,11 +10,13 @@ import { TrustPillars } from './components/TrustPillars';
 import { CommunitySection } from './components/CommunitySection';
 import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
+import { WishlistDrawer } from './components/WishlistDrawer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { subscribeToProducts, getStoredProducts } from './lib/productsDb';
 import { createOrder } from './lib/ordersDb';
 import { useTheme } from './lib/theme';
+import { useWishlist } from './lib/wishlist';
 
 // Code-split modals and admin suite with automatic network drop retry
 const CheckoutModal = lazyWithRetry(() =>
@@ -62,6 +64,14 @@ export function App() {
   const [products, setProducts] = useState<Product[]>(getStoredProducts);
   const [productsLoading, setProductsLoading] = useState(false);
 
+  // Customer Wishlist / Stash hook
+  const {
+    wishlistProducts,
+    count: wishlistCount,
+    remove: removeFromWishlist,
+    clear: clearWishlist,
+  } = useWishlist(products);
+
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem('danitech_cart') || localStorage.getItem('krom_accra_cart');
@@ -77,6 +87,7 @@ export function App() {
 
   // Modals state
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -153,6 +164,7 @@ export function App() {
       }
       if (e.key === 'Escape') {
         setIsCartOpen(false);
+        setIsWishlistOpen(false);
         setIsSearchOpen(false);
         setIsCheckoutOpen(false);
         setIsAboutOpen(false);
@@ -175,6 +187,12 @@ export function App() {
         );
       }
       return [...prev, { product, quantity: 1 }];
+    });
+  };
+
+  const handleAddAllToCart = (itemsToAdd: Product[]) => {
+    itemsToAdd.forEach((p) => {
+      handleAddToCart(p);
     });
   };
 
@@ -243,6 +261,8 @@ export function App() {
         onSelectCurrency={setCurrency}
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
+        wishlistCount={wishlistCount}
+        onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenAbout={handleOpenAbout}
         onOpenProfile={() => setIsProfileOpen(true)}
@@ -298,6 +318,22 @@ export function App() {
         onProceedToCheckout={() => {
           setIsCartOpen(false);
           setIsCheckoutOpen(true);
+        }}
+      />
+
+      {/* Slide-out Wishlist / Saved Setups Drawer */}
+      <WishlistDrawer
+        isOpen={isWishlistOpen}
+        onClose={() => setIsWishlistOpen(false)}
+        products={wishlistProducts}
+        currency={currency}
+        onRemoveItem={removeFromWishlist}
+        onClearWishlist={clearWishlist}
+        onAddToCart={handleAddToCart}
+        onAddAllToCart={handleAddAllToCart}
+        onQuickView={(p) => {
+          setIsWishlistOpen(false);
+          setQuickViewProduct(p);
         }}
       />
 

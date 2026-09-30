@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ShoppingBag, CheckCircle, Menu, X, User, ChevronDown, Sun, Moon } from 'lucide-react';
+import { Search, ShoppingBag, CheckCircle, Menu, X, User, ChevronDown, Sun, Moon, Heart } from 'lucide-react';
 import { Category, Currency } from '../types';
 import { WHATSAPP_PHONE_RAW } from '../utils/format';
 import { useTheme } from '../lib/theme';
@@ -11,6 +11,8 @@ interface HeaderProps {
   onSelectCurrency: (currency: Currency) => void;
   cartCount: number;
   onOpenCart: () => void;
+  wishlistCount: number;
+  onOpenWishlist: () => void;
   onOpenSearch: () => void;
   onOpenAbout: () => void;
   onOpenProfile: () => void;
@@ -23,6 +25,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectCurrency,
   cartCount,
   onOpenCart,
+  wishlistCount,
+  onOpenWishlist,
   onOpenSearch,
   onOpenAbout,
   onOpenProfile,
@@ -207,6 +211,21 @@ export const Header: React.FC<HeaderProps> = ({
             <CheckCircle className="w-3.5 h-3.5 text-[#00838f] dark:text-[#00dce6]" />
           </a>
 
+          {/* Wishlist / Stash Trigger */}
+          <button
+            onClick={onOpenWishlist}
+            className="relative flex items-center justify-center w-9 h-9 rounded-full bg-black/5 dark:bg-[#2a2a2c] hover:bg-black/10 dark:hover:bg-[#353437] text-[#161618] dark:text-white transition-colors cursor-pointer"
+            aria-label="View saved setups (My Stash)"
+            title="My Stash / Saved Hardware"
+          >
+            <Heart className={`w-4 h-4 transition-transform ${wishlistCount > 0 ? 'text-red-500 fill-red-500 scale-105' : 'text-[#555558] dark:text-[#c2c6d8]'}`} />
+            {wishlistCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-[#fbfbfa] dark:ring-[#131315]">
+                {wishlistCount}
+              </span>
+            )}
+          </button>
+
           {/* Bag / Cart Trigger */}
           <button
             onClick={onOpenCart}
@@ -246,6 +265,29 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white/95 dark:bg-[#1c1b1d]/95 backdrop-blur-xl border-b border-black/10 dark:border-[#424656]/40 px-4 py-4 space-y-3 shadow-xl transition-colors">
+          {/* Mobile Stash Shortcut */}
+          <button
+            onClick={() => {
+              setMobileMenuOpen(false);
+              onOpenWishlist();
+            }}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-[#2a2a2c]/60 border border-black/5 dark:border-[#424656]/30 text-left cursor-pointer hover:bg-black/10 dark:hover:bg-[#2a2a2c] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Heart className={`w-4 h-4 ${wishlistCount > 0 ? 'text-red-500 fill-red-500' : 'text-[#6e6e73] dark:text-[#c2c6d8]'}`} />
+              <span className="text-xs font-medium text-[#161618] dark:text-[#e5e1e4]">
+                My Stash (Saved Hardware)
+              </span>
+            </div>
+            {wishlistCount > 0 ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-red-500 text-white">
+                {wishlistCount} {wishlistCount === 1 ? 'item' : 'items'}
+              </span>
+            ) : (
+              <span className="text-[10px] font-mono text-[#6e6e73] dark:text-[#8c90a1]">0 items</span>
+            )}
+          </button>
+
           {/* Mobile Theme Switcher Pill */}
           <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-[#2a2a2c]/60 border border-black/5 dark:border-[#424656]/30">
             <div className="flex items-center gap-2">

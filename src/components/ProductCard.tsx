@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { ShoppingBag, MessageSquare, Check, Eye, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingBag, MessageSquare, Check, Eye, ChevronLeft, ChevronRight, Layers, Heart } from 'lucide-react';
 import { Product, Currency } from '../types';
 import { formatPrice, generateProductWhatsAppUrl } from '../utils/format';
+import { isInWishlist, toggleWishlistId } from '../lib/wishlist';
 
 interface ProductCardProps {
   product: Product;
@@ -19,6 +20,21 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   const [added, setAdded] = useState(false);
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [isSaved, setIsSaved] = useState(() => isInWishlist(product.id));
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setIsSaved(isInWishlist(product.id));
+    };
+    window.addEventListener('danitech_wishlist_updated', handleUpdate);
+    return () => window.removeEventListener('danitech_wishlist_updated', handleUpdate);
+  }, [product.id]);
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextSaved = toggleWishlistId(product.id);
+    setIsSaved(nextSaved);
+  };
 
   const images = (product.images && product.images.length > 0)
     ? product.images
@@ -97,23 +113,39 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
           </div>
         ) : null}
 
-        {/* Top-Right: Photo counter indicator when multiple photos exist */}
-        {hasMultipleImages && (
-          <div className="absolute top-3 right-11 px-2 py-0.5 rounded-full bg-white/90 dark:bg-[#131315]/80 backdrop-blur-md text-[#161618] dark:text-[#c2c6d8] text-[9px] font-mono border border-black/10 dark:border-[#424656]/40 flex items-center gap-1 z-10 shadow-sm">
-            <Layers className="w-3 h-3 text-[#00838f] dark:text-[#00dce6]" />
-            <span>{currentImgIdx + 1}/{images.length}</span>
-          </div>
-        )}
+        {/* Top-Right: Wishlist Heart & Quick View Action Controls */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+          {hasMultipleImages && (
+            <div className="px-2 py-0.5 rounded-full bg-white/90 dark:bg-[#131315]/80 backdrop-blur-md text-[#161618] dark:text-[#c2c6d8] text-[9px] font-mono border border-black/10 dark:border-[#424656]/40 flex items-center gap-1 shadow-sm">
+              <Layers className="w-3 h-3 text-[#00838f] dark:text-[#00dce6]" />
+              <span>{currentImgIdx + 1}/{images.length}</span>
+            </div>
+          )}
 
-        {/* Quick View overlay trigger on image */}
-        <button
-          onClick={() => onQuickView(product)}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-[#161618] dark:bg-[#131315]/80 dark:hover:bg-[#131315] dark:text-[#c2c6d8] dark:hover:text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-sm z-10"
-          title="See More & Specifications"
-          aria-label="See More Specs"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
+          {/* Wishlist / Stash Toggle Button */}
+          <button
+            type="button"
+            onClick={handleToggleWishlist}
+            className={`w-8 h-8 rounded-full bg-white/90 hover:bg-white dark:bg-[#131315]/80 dark:hover:bg-[#131315] flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-sm ${
+              isSaved ? 'text-red-500 scale-105' : 'text-[#6e6e73] dark:text-[#c2c6d8] hover:text-red-500 dark:hover:text-red-400'
+            }`}
+            title={isSaved ? "Saved to My Stash (Click to remove)" : "Save to My Stash"}
+            aria-label={isSaved ? "Saved in Stash" : "Save to Stash"}
+          >
+            <Heart className={`w-4 h-4 transition-transform active:scale-125 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
+          </button>
+
+          {/* Quick View overlay trigger on image */}
+          <button
+            type="button"
+            onClick={() => onQuickView(product)}
+            className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-[#161618] dark:bg-[#131315]/80 dark:hover:bg-[#131315] dark:text-[#c2c6d8] dark:hover:text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-sm"
+            title="See More & Specifications"
+            aria-label="See More Specs"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
 
         {/* Next / Prev Photo Arrows (Visible on card hover or for quick flipping) */}
         {hasMultipleImages && (

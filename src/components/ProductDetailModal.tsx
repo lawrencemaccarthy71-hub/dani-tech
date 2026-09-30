@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingBag, MessageSquare, ShieldCheck, Check, Truck, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ShoppingBag, MessageSquare, ShieldCheck, Check, Truck, Layers, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { Product, Currency } from '../types';
 import { formatPrice, generateProductWhatsAppUrl } from '../utils/format';
+import { isInWishlist, toggleWishlistId } from '../lib/wishlist';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -19,11 +20,30 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [activeIdx, setActiveIdx] = useState(0);
   const [added, setAdded] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [isSaved, setIsSaved] = useState(() => (product ? isInWishlist(product.id) : false));
 
   useEffect(() => {
     setActiveIdx(0);
     setAdded(false);
+    if (product) {
+      setIsSaved(isInWishlist(product.id));
+    }
   }, [product?.id]);
+
+  useEffect(() => {
+    if (!product) return;
+    const handleUpdate = () => {
+      setIsSaved(isInWishlist(product.id));
+    };
+    window.addEventListener('danitech_wishlist_updated', handleUpdate);
+    return () => window.removeEventListener('danitech_wishlist_updated', handleUpdate);
+  }, [product?.id]);
+
+  const handleToggleWishlist = () => {
+    if (!product) return;
+    const nextSaved = toggleWishlistId(product.id);
+    setIsSaved(nextSaved);
+  };
 
   if (!product) return null;
 
@@ -281,6 +301,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     <span>Add to Cart ({formatPrice(product.priceGhs, currency)})</span>
                   </>
                 )}
+              </button>
+
+              {/* Wishlist / Stash Toggle Button */}
+              <button
+                type="button"
+                onClick={handleToggleWishlist}
+                className={`py-3 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                  isSaved
+                    ? 'bg-red-50 dark:bg-red-950/40 text-red-500 border-red-200 dark:border-red-900/60 shadow-sm'
+                    : 'bg-black/5 hover:bg-black/10 dark:bg-[#201f21] dark:hover:bg-[#2a2a2c] text-[#555558] dark:text-[#c2c6d8] border-black/8 dark:border-[#424656]/30'
+                }`}
+                title={isSaved ? "Saved to My Stash (Click to remove)" : "Save to My Stash"}
+              >
+                <Heart className={`w-4 h-4 transition-transform active:scale-125 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
+                <span className="hidden sm:inline">{isSaved ? 'In Stash' : 'Save'}</span>
               </button>
 
               <a
