@@ -57,7 +57,7 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
               <source srcSet="/assets/hero-workspace-4k.webp" type="image/webp" />
               <img
                 src="/assets/hero-workspace-4k.jpg"
-                alt="Dani Tech Premium Apple Accessories Studio Setup"
+                alt="Dani Tech Premium Studio Hardware Ecosystem"
                 className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.01]"
                 loading="eager"
                 fetchPriority="high"
@@ -71,7 +71,7 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
             {/* Floating Interactive Callouts */}
             <div className="absolute top-5 left-5 md:top-8 md:left-8 flex items-center gap-2.5 px-3.5 py-1.5 md:px-4 md:py-2 rounded-full bg-black/75 dark:bg-[#131315]/85 backdrop-blur-md text-white text-xs md:text-sm font-mono shadow-lg border border-white/20 dark:border-[#424656]/40">
               <span className="w-2 h-2 rounded-full bg-[#00dce6] animate-ping"></span>
-              <span className="font-medium">Space Grey Anodized Finish</span>
+              <span className="font-medium">Curated Hardware Ecosystem</span>
             </div>
 
             <div className="hidden sm:flex absolute bottom-8 left-8 items-center gap-2.5 px-4 py-2 rounded-full bg-black/75 dark:bg-[#131315]/85 backdrop-blur-md text-white text-xs md:text-sm font-mono shadow-lg border border-white/20 dark:border-[#424656]/40">
@@ -81,7 +81,7 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
 
             <div className="absolute bottom-5 right-5 md:bottom-8 md:right-8 flex items-center gap-2.5 px-3.5 py-1.5 md:px-4 md:py-2 rounded-full bg-black/75 dark:bg-[#131315]/85 backdrop-blur-md text-white text-xs md:text-sm font-mono shadow-lg border border-white/20 dark:border-[#424656]/40">
               <ShieldCheck className="w-4 h-4 text-[#b3c5ff]" />
-              <span>100% Guaranteed Device Fit</span>
+              <span>100% Genuine &amp; Verified Hardware</span>
             </div>
 
             {/* Floating Direct WhatsApp Order Trigger on Canvas */}
