@@ -364,7 +364,7 @@ Total Value: GH₵ ${order.totalGhs}`;
                           className="px-2.5 py-1.5 rounded-lg bg-[#131315] border border-[#424656]/40 text-[#e5e1e4] font-medium focus:outline-none focus:border-[#0066ff] cursor-pointer"
                         >
                           <option value="pending">⏳ Pending Verification</option>
-                          <option value="processing">📦 Packaging at East Legon</option>
+                          <option value="processing">📦 Packaging at Madina</option>
                           <option value="dispatched">🚚 In Transit (Dispatched)</option>
                           <option value="delivered">✅ Delivered to Client</option>
                           <option value="cancelled">❌ Cancelled</option>
@@ -1223,7 +1223,7 @@ const SettingsSection: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         <div className="p-5 space-y-2 text-xs">
           {[
             ['WhatsApp Number', WHATSAPP_PHONE_FORMATTED],
-            ['Location', 'East Legon, Accra, Ghana'],
+            ['Location', 'Madina, Accra, Ghana'],
             ['Currency', 'GHS (Primary) / USD (1 USD = 15.5 GHS)'],
             ['Same-Day Cutoff', 'Orders before 4:00 PM'],
             ['Delivery Partners', 'Bolt, Yango (Accra)'],
@@ -1445,7 +1445,7 @@ export const AdminDashboard: React.FC = () => {
             <h1 className="font-['Geist',sans-serif] text-base font-semibold text-[#e5e1e4] capitalize">
               {section === 'overview' ? 'Dashboard Overview' : section}
             </h1>
-            <p className="text-[10px] font-mono text-[#8c90a1]">Dani Tech Hub · East Legon, Accra</p>
+            <p className="text-[10px] font-mono text-[#8c90a1]">Dani Tech Hub · Madina, Accra</p>
           </div>
 
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#1c1b1d] border border-[#424656]/30">

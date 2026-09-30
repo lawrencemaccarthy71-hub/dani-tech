@@ -14,6 +14,7 @@ import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { subscribeToProducts, getStoredProducts } from './lib/productsDb';
 import { createOrder } from './lib/ordersDb';
+import { useTheme } from './lib/theme';
 
 // Code-split modals and admin suite with automatic network drop retry
 const CheckoutModal = lazyWithRetry(() =>
@@ -43,16 +44,17 @@ const AdminProtectedRoute = lazyWithRetry(() =>
 );
 
 const AdminLoadingFallback: React.FC = () => (
-  <div className="min-h-screen bg-[#131315] flex items-center justify-center">
-    <div className="flex flex-col items-center gap-3 text-[#ffb77d]">
-      <div className="w-8 h-8 border-2 border-[#ffb77d] border-t-transparent rounded-full animate-spin" />
-      <span className="text-xs font-mono tracking-wider text-[#c2c6d8]">Loading Dani Tech Admin...</span>
+  <div className="min-h-screen bg-[#fbfbfa] dark:bg-[#131315] flex items-center justify-center transition-colors">
+    <div className="flex flex-col items-center gap-3 text-[#c26d2b] dark:text-[#ffb77d]">
+      <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs font-mono tracking-wider text-[#6e6e73] dark:text-[#c2c6d8]">Loading Dani Tech Admin...</span>
     </div>
   </div>
 );
 
 
 export function App() {
+  useTheme();
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [currency, setCurrency] = useState<Currency>('GHS');
 
@@ -232,7 +234,7 @@ export function App() {
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   const storefront = (
-    <div className="min-h-screen bg-[#131315] text-[#e5e1e4] font-sans antialiased selection:bg-[#ffb77d] selection:text-[#131315]">
+    <div className="min-h-screen bg-[#fbfbfa] dark:bg-[#131315] text-[#161618] dark:text-[#e5e1e4] font-sans antialiased selection:bg-[#0066ff] selection:text-white transition-colors duration-250">
       {/* Fixed Header */}
       <Header
         activeCategory={activeCategory}

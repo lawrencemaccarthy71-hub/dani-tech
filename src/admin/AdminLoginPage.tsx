@@ -106,7 +106,7 @@ export const AdminLoginPage: React.FC = () => {
             Staff Portal Access
           </h1>
           <p className="text-xs text-[#8c90a1] mt-1 font-mono">
-            Dani Tech Hub — East Legon, Accra
+            Dani Tech Hub — Madina, Accra
           </p>
         </div>
 

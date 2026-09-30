@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-surface: #131315;
   --color-surface-container-lowest: #0e0e10;
@@ -31,9 +33,18 @@
   html, body {
     margin: 0;
     padding: 0;
+    font-family: var(--font-sans);
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  }
+
+  html.dark, html.dark body {
     background-color: #131315;
     color: #e5e1e4;
-    font-family: var(--font-sans);
+  }
+
+  html.light, html.light body {
+    background-color: #fbfbfa;
+    color: #161618;
   }
 }
 
