@@ -69,7 +69,7 @@ export const CommunitySection: React.FC = () => {
                 </a>
 
                 <a
-                  href="https://tiktok.com"
+                  href="https://www.tiktok.com/@danny.techstore"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-5 py-3.5 rounded-xl bg-black/5 hover:bg-black/10 dark:bg-[#2a2a2c] dark:hover:bg-[#353437] text-[#161618] dark:text-[#e5e1e4] text-xs sm:text-sm font-medium transition-colors flex items-center gap-2 border border-black/8 dark:border-[#424656]/30 shadow-sm cursor-pointer"

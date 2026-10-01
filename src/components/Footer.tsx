@@ -257,7 +257,7 @@ export const Footer: React.FC<FooterProps> = ({
               <span>Instagram</span>
             </a>
             <a
-              href="https://tiktok.com"
+              href="https://www.tiktok.com/@danny.techstore"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#0066ff] dark:hover:text-[#b3c5ff] transition-colors flex items-center gap-1"
