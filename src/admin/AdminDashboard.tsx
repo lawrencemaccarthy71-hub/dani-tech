@@ -986,63 +986,91 @@ const ProductsSection: React.FC<{
 
                   {/* Multi-Photo Thumbnails Gallery */}
                   {((modal.product.images && modal.product.images.length > 0) || modal.product.image) && (
-                    <div className="p-3 rounded-xl bg-[#131315] border border-[#424656]/30 space-y-2">
-                      <div className="flex items-center justify-between text-[11px] font-mono">
-                        <span className="text-[#00dce6]">
+                    <div className="p-3.5 rounded-xl bg-[#131315] border border-[#424656]/30 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] font-mono">
+                        <span className="text-[#00dce6] font-semibold flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00dce6] animate-pulse"></span>
                           Photo Gallery ({modal.product.images?.length || (modal.product.image ? 1 : 0)} photos)
                         </span>
-                        <span className="text-[#ffb77d] text-[10px]">
-                          ★ First photo is Cover Image
+                        <span className="text-[#ffb77d] text-[10px] bg-[#ffb77d]/10 px-2 py-0.5 rounded-md border border-[#ffb77d]/30">
+                          ★ Tap any photo to set as Cover Image
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                         {(modal.product.images && modal.product.images.length > 0
                           ? modal.product.images
                           : (modal.product.image ? [modal.product.image] : [])
-                        ).map((url, idx) => (
-                          <div
-                            key={idx}
-                            className={`relative group aspect-square rounded-xl bg-[#1c1b1d] p-1.5 border transition-all ${
-                              idx === 0
-                                ? 'border-[#0066ff] ring-2 ring-[#0066ff]/40 shadow-sm'
-                                : 'border-[#424656]/30'
-                            }`}
-                          >
-                            <img
-                              src={url}
-                              alt={`Photo ${idx + 1}`}
-                              className="w-full h-full object-contain rounded-lg"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src =
-                                  'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=600&q=80';
+                        ).map((url, idx) => {
+                          const isCover = idx === 0;
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                if (!isCover) handleSetCoverPhoto(idx);
                               }}
-                            />
-                            {idx === 0 ? (
-                              <span className="absolute top-1 left-1 bg-[#0066ff] text-white text-[8px] font-mono px-1.5 py-0.5 rounded-full font-bold">
-                                COVER
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleSetCoverPhoto(idx)}
-                                className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 bg-[#201f21] hover:bg-[#0066ff] text-white text-[8px] font-mono px-1.5 py-0.5 rounded transition-all cursor-pointer"
-                                title="Set as main cover image"
-                              >
-                                Set Cover
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() => handleRemovePhoto(idx)}
-                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all cursor-pointer shadow-sm"
-                              title="Delete photo"
+                              className={`relative group flex flex-col rounded-xl bg-[#1c1b1d] p-1.5 border transition-all select-none ${
+                                isCover
+                                  ? 'border-[#0066ff] ring-2 ring-[#0066ff]/50 shadow-md bg-[#0066ff]/5'
+                                  : 'border-[#424656]/40 hover:border-[#0066ff]/60 active:scale-[0.98] cursor-pointer'
+                              }`}
+                              title={isCover ? "Current Main Cover Image" : "Tap to set as Main Cover Image"}
                             >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
+                              {/* Thumbnail Image Container */}
+                              <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-[#131315] flex items-center justify-center p-1 border border-black/20">
+                                <img
+                                  src={url}
+                                  alt={`Product photo ${idx + 1}`}
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src =
+                                      'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=600&q=80';
+                                  }}
+                                />
+
+                                {/* Cover Badge or Set Cover Button - ALWAYS Visible on Mobile and Desktop */}
+                                {isCover ? (
+                                  <span className="absolute top-1 left-1 bg-[#0066ff] text-white text-[9px] font-mono px-2 py-0.5 rounded-md font-bold tracking-wider shadow-md flex items-center gap-1 border border-white/20 z-10">
+                                    ★ COVER
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSetCoverPhoto(idx);
+                                    }}
+                                    className="absolute top-1 left-1 bg-black/80 hover:bg-[#0066ff] active:bg-[#0054d6] text-white text-[9px] font-mono px-2 py-0.5 rounded-md font-semibold border border-white/20 shadow-md transition-all cursor-pointer z-10 flex items-center gap-1"
+                                    title="Set as main cover image"
+                                  >
+                                    Set Cover
+                                  </button>
+                                )}
+
+                                {/* Delete Photo Button - ALWAYS Visible on Mobile and Desktop */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemovePhoto(idx);
+                                  }}
+                                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white flex items-center justify-center transition-all cursor-pointer shadow-md border border-white/20 z-10"
+                                  title="Delete photo"
+                                  aria-label="Delete photo"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+
+                                {/* Bottom Hint for Non-Cover Photos */}
+                                {!isCover && (
+                                  <div className="absolute inset-x-0 bottom-0 py-0.5 bg-black/70 backdrop-blur-xs text-center text-[8px] font-mono text-[#c2c6d8] pointer-events-none">
+                                    Tap to make cover
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
