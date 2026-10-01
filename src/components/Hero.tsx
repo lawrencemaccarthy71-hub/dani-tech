@@ -111,28 +111,28 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
 
           <div className="p-4 rounded-xl bg-white/95 dark:bg-[#2a2a2c]/90 backdrop-blur-lg shadow-xl border border-black/8 dark:border-[#424656]/30 flex flex-col items-center text-center transition-colors">
             <span className="font-['Geist',sans-serif] text-2xl md:text-3xl font-semibold text-[#c26d2b] dark:text-[#ffb77d]">
-              30 Min
+              Instant
             </span>
             <span className="text-[10px] md:text-[11px] font-mono text-[#6e6e73] dark:text-[#c2c6d8] uppercase mt-1 tracking-wider">
-              WhatsApp Response Time
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-white/95 dark:bg-[#2a2a2c]/90 backdrop-blur-lg shadow-xl border border-black/8 dark:border-[#424656]/30 flex flex-col items-center text-center transition-colors">
-            <span className="font-['Geist',sans-serif] text-lg md:text-2xl font-semibold text-[#161618] dark:text-[#e5e1e4] mt-1 md:mt-0">
-              MTN & Telecel
-            </span>
-            <span className="text-[10px] md:text-[11px] font-mono text-[#6e6e73] dark:text-[#c2c6d8] uppercase mt-1 tracking-wider">
-              Instant MoMo Rail
+              Fastest WhatsApp Response
             </span>
           </div>
 
           <div className="p-4 rounded-xl bg-white/95 dark:bg-[#2a2a2c]/90 backdrop-blur-lg shadow-xl border border-black/8 dark:border-[#424656]/30 flex flex-col items-center text-center transition-colors">
             <span className="font-['Geist',sans-serif] text-2xl md:text-3xl font-semibold text-[#00838f] dark:text-[#00dce6]">
-              1-Year
+              Same-Day
             </span>
             <span className="text-[10px] md:text-[11px] font-mono text-[#6e6e73] dark:text-[#c2c6d8] uppercase mt-1 tracking-wider">
-              Hardware Replacement
+              Express Accra Dispatch
+            </span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-white/95 dark:bg-[#2a2a2c]/90 backdrop-blur-lg shadow-xl border border-black/8 dark:border-[#424656]/30 flex flex-col items-center text-center transition-colors">
+            <span className="font-['Geist',sans-serif] text-2xl md:text-3xl font-semibold text-[#0066ff] dark:text-[#b3c5ff]">
+              100%
+            </span>
+            <span className="text-[10px] md:text-[11px] font-mono text-[#6e6e73] dark:text-[#c2c6d8] uppercase mt-1 tracking-wider">
+              Verified Genuine Hardware
             </span>
           </div>
         </div>
