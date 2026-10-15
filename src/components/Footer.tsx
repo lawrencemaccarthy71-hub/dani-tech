@@ -234,7 +234,7 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Bottom Credits & Social */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-mono text-[#6e6e73] dark:text-[#8c90a1]">
           <div className="flex items-center gap-2">
-            <span>© 2025 DANI TECH. ALL RIGHTS RESERVED.</span>
+            <span>© {new Date().getFullYear()} DANI TECH. ALL RIGHTS RESERVED.</span>
           </div>
 
           <div className="flex items-center gap-4">

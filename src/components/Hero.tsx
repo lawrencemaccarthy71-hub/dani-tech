@@ -18,7 +18,7 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-10 md:mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-[#2a2a2c]/80 text-[#c26d2b] dark:text-[#ffb77d] text-[11px] font-mono mb-6 shadow-sm border border-black/5 dark:border-[#424656]/30 transition-colors">
             <span className="w-1.5 h-1.5 rounded-full bg-[#c26d2b] dark:bg-[#ffb77d] animate-pulse"></span>
-            <span className="tracking-widest uppercase">Engineered in Accra • 2025 Release</span>
+            <span className="tracking-widest uppercase">Engineered in Accra • 2026 Release</span>
           </div>
 
           <h1 className="font-['Geist',sans-serif] text-4xl sm:text-5xl md:text-6xl font-semibold text-[#161618] dark:text-[#e5e1e4] tracking-tight leading-[1.1] mb-6 transition-colors">
