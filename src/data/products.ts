@@ -123,7 +123,7 @@ export const PRODUCTS: Product[] = [
     badge: 'Bestseller',
     badgeColor: 'secondary',
     featureTag: 'Grade 5 Ti',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBv2_-Lzj8EVZcphIpvPqKXg7pjIAyI2va_6XDOKaCit4NTpR-bhF5Tnit2pdeWwIt3OB9CSEkwpJx5odNrWS1mIESzbuyFKxLt_QDxceLVN0hOMlh9SYdQ80FjhgrCH5wF9jLzNsh34yb7h4qfyMrzPuHCpBYuNg6DH_wlaabPuTX3y99X_4tMG5GiYukT-NN0TKcSlKQKcs-20VHnCqlzjuss7D9ul-rf3De1RWtqb7H5mCC2wse5',
+    image: '/assets/vanguard-titanium-case.webp',
     description: 'Precision-formed grade 5 titanium perimeter frame with shock-absorbing internal elastomer dampers and flush Action Button tactile cover.',
     specs: {
       material: 'Grade 5 Polished Titanium & Polycarbonate Backplate',

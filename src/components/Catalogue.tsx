@@ -7,7 +7,6 @@ interface CatalogueProps {
   activeCategory: Category;
   onSelectCategory: (cat: Category) => void;
   currency: Currency;
-  onToggleCurrency: () => void;
   onAddToCart: (product: Product) => void;
   onQuickView: (product: Product) => void;
 }

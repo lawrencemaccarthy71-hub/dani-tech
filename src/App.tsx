@@ -62,7 +62,6 @@ export function App() {
 
   // Dual-layer state: Loads immediately from local storage cache, synced live with Firestore
   const [products, setProducts] = useState<Product[]>(getStoredProducts);
-  const [productsLoading, setProductsLoading] = useState(false);
 
   // Customer Wishlist / Stash hook
   const {
@@ -108,12 +107,10 @@ export function App() {
     const unsubscribe = subscribeToProducts(
       (freshProducts) => {
         setProducts(freshProducts);
-        setProductsLoading(false);
       },
       (_err) => {
         // Keep existing user products from cache on connection hiccup
         setProducts(getStoredProducts());
-        setProductsLoading(false);
       }
     );
 
@@ -286,7 +283,6 @@ export function App() {
           activeCategory={activeCategory}
           onSelectCategory={setActiveCategory}
           currency={currency}
-          onToggleCurrency={() => setCurrency(currency === 'GHS' ? 'USD' : 'GHS')}
           onAddToCart={handleAddToCart}
           onQuickView={(p) => setQuickViewProduct(p)}
         />
