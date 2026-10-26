@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Lock, Eye, EyeOff, ArrowLeft, ShieldCheck, Loader2, AlertCircle, Timer } from 'lucide-react';
-import { verifyPassword, setAdminSession, isAdminAuthenticated, isLockedOut, getLockoutRemainingMs } from './auth';
+import { Lock, Eye, EyeOff, ArrowLeft, ShieldCheck, Loader2, AlertCircle, Timer, Mail } from 'lucide-react';
+import { loginWithFirebase, verifyPassword, setAdminSession, isAdminAuthenticated, isLockedOut, getLockoutRemainingMs } from './auth';
 
 /**
  * AdminLoginPage — full-screen branded login screen for Dani Tech admin access.
@@ -17,6 +17,13 @@ export const AdminLoginPage: React.FC = () => {
     }
   }, [navigate]);
 
+  const [email, setEmail] = useState(() => {
+    try {
+      return localStorage.getItem('danitech_last_admin_email') || '';
+    } catch {
+      return '';
+    }
+  });
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,13 +51,30 @@ export const AdminLoginPage: React.FC = () => {
     setIsLoading(true);
     setError('');
 
-    // Small delay to show loading state (also prevents timing attacks)
-    await new Promise((r) => setTimeout(r, 600));
+    // If an email is entered, authenticate via Firebase Authentication
+    if (email.trim()) {
+      const res = await loginWithFirebase(email.trim(), password);
+      if (res.success) {
+        try {
+          localStorage.setItem('danitech_last_admin_email', email.trim());
+        } catch {}
+        navigate('/admin', { replace: true });
+        return;
+      } else {
+        setIsLoading(false);
+        setError(res.error || 'Invalid credentials. Access denied.');
+        setShake(true);
+        setTimeout(() => setShake(false), 600);
+        return;
+      }
+    }
 
+    // Fallback: Legacy master passcode
+    await new Promise((r) => setTimeout(r, 600));
     const valid = await verifyPassword(password);
 
     if (valid) {
-      setAdminSession();
+      setAdminSession('master@danitech.internal');
       navigate('/admin', { replace: true });
     } else {
       setIsLoading(false);
@@ -129,6 +153,29 @@ export const AdminLoginPage: React.FC = () => {
               </div>
             )}
 
+            {/* Email field */}
+            <div>
+              <label className="block text-xs font-mono text-[#c2c6d8] uppercase tracking-wider mb-1.5">
+                Admin Email
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  autoFocus={!email}
+                  disabled={lockoutMs > 0}
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError('');
+                  }}
+                  placeholder="admin@danitech.com"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#131315] border border-[#424656]/40 text-[#e5e1e4] text-sm focus:outline-none focus:border-[#0066ff] transition-colors font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <Mail className="w-4 h-4 text-[#8c90a1] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
             {/* Password field */}
             <div>
               <label className="block text-xs font-mono text-[#c2c6d8] uppercase tracking-wider mb-1.5">
@@ -138,7 +185,7 @@ export const AdminLoginPage: React.FC = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  autoFocus
+                  autoFocus={!!email}
                   disabled={lockoutMs > 0}
                   value={password}
                   onChange={(e) => {
@@ -181,7 +228,7 @@ export const AdminLoginPage: React.FC = () => {
 
           {/* Security note */}
           <p className="text-[10px] text-[#424656] text-center mt-4 font-mono">
-            Session expires after 2h inactivity or tab close • SHA-256 secured
+            Protected by Google Firebase Authentication • 256-bit Encrypted
           </p>
         </div>
       </div>

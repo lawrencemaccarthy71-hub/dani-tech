@@ -1,12 +1,11 @@
+import { signInWithEmailAndPassword, signOut as fbSignOut } from 'firebase/auth';
+import { auth } from '../lib/firebase';
+
 /**
  * auth.ts — Dani Tech Admin Authentication Utilities
  *
- * Uses the browser-native Web Crypto API (SHA-256) to verify
- * passwords without storing plain text anywhere in the code.
- *
- * Default credentials:
- *   Password: Accraacademy27$
- *   ⚠️ Change via Settings panel → saves a new hash to localStorage
+ * Uses Firebase Authentication (Email/Password) to issue cryptographic tokens
+ * for Cloud Firestore security rules, with local brute-force protection.
  */
 
 // SHA-256 hash of the default password "Accraacademy27$"
@@ -137,16 +136,70 @@ export async function updateAdminPassword(newPassword: string): Promise<void> {
   localStorage.setItem(CUSTOM_HASH_KEY, newHash);
 }
 
+/**
+ * Authenticates with Firebase Authentication using Email and Password.
+ * Issues cryptographic session token for Firestore Security Rules.
+ */
+export async function loginWithFirebase(
+  email: string,
+  password: string
+): Promise<{ success: boolean; error?: string }> {
+  if (isLockedOut()) {
+    return {
+      success: false,
+      error: `Account locked due to multiple failed attempts. Please wait ${Math.ceil(
+        getLockoutRemainingMs() / 60000
+      )} minute(s).`,
+    };
+  }
+
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    clearLockout();
+    setAdminSession(cred.user.email || email.trim());
+    return { success: true };
+  } catch (err: any) {
+    recordFailedAttempt();
+    let msg = 'Invalid credentials. Access denied.';
+    if (
+      err?.code === 'auth/user-not-found' ||
+      err?.code === 'auth/wrong-password' ||
+      err?.code === 'auth/invalid-credential'
+    ) {
+      msg = 'Invalid email or password. Please verify your credentials.';
+    } else if (err?.code === 'auth/too-many-requests') {
+      msg = 'Access temporarily disabled due to many failed login attempts. Try again later.';
+    } else if (err?.code === 'auth/invalid-email') {
+      msg = 'Please enter a valid email address.';
+    } else if (err?.code === 'auth/network-request-failed') {
+      msg = 'Network connection error. Check your internet connection.';
+    } else if (err?.message) {
+      msg = err.message;
+    }
+    return { success: false, error: msg };
+  }
+}
+
 /** Writes a session token to sessionStorage (clears on tab/browser close). */
-export function setAdminSession(): void {
+export function setAdminSession(email?: string): void {
   sessionStorage.setItem(SESSION_KEY, SESSION_TOKEN);
+  if (email) {
+    sessionStorage.setItem('danitech_admin_email', email);
+  }
   touchAdminActivity();
+}
+
+/** Retrieves the currently logged-in admin email from session. */
+export function getAdminEmail(): string | null {
+  return sessionStorage.getItem('danitech_admin_email') || auth.currentUser?.email || null;
 }
 
 /** Removes the admin session, effectively logging the admin out. */
 export function clearAdminSession(): void {
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(ACTIVITY_KEY);
+  sessionStorage.removeItem('danitech_admin_email');
+  fbSignOut(auth).catch((e) => console.warn('Firebase signout:', e));
 }
 
 /** Returns true if a valid admin session exists and has not timed out. */

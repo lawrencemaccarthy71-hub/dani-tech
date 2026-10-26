@@ -4,6 +4,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeFirestore, getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 function cleanEnv(val: unknown): string {
   if (typeof val !== 'string') return '';
@@ -26,6 +27,9 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
 }
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Initialize Firebase Authentication
+export const auth = getAuth(app);
 
 // Initialize Firestore with ignoreUndefinedProperties to prevent write rejections
 export const db = (() => {

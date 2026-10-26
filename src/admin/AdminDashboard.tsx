@@ -8,7 +8,7 @@ import {
   BarChart2, RefreshCw, Plus, Edit, RotateCcw, Upload, Image as ImageIcon,
   Copy, PhoneCall,
 } from 'lucide-react';
-import { clearAdminSession, verifyPassword, updateAdminPassword } from './auth';
+import { clearAdminSession, verifyPassword, updateAdminPassword, getAdminEmail } from './auth';
 import { PRODUCTS } from '../data/products';
 import { formatPrice, WHATSAPP_PHONE_RAW, WHATSAPP_PHONE_FORMATTED } from '../utils/format';
 import { OrderRecord, Product, OrderStatus } from '../types';
@@ -1310,6 +1310,7 @@ export const AdminDashboard: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(getStoredProducts);
   const [orders, setOrders] = useState<OrderRecord[]>(getStoredOrders);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [adminEmail] = useState(() => getAdminEmail());
 
   // ── Firestore real-time product subscription with local cache fallback ─────
   useEffect(() => {
@@ -1415,9 +1416,14 @@ export const AdminDashboard: React.FC = () => {
                 <span className="font-mono font-black text-xs text-[#00dce6]">DT</span>
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="font-['Geist',sans-serif] text-sm font-bold text-[#e5e1e4]">Dani Tech</p>
               <p className="text-[9px] font-mono text-[#8c90a1] uppercase tracking-wider">Admin Panel</p>
+              {adminEmail && (
+                <p className="text-[10px] font-mono text-[#00dce6] truncate max-w-[150px] mt-0.5" title={adminEmail}>
+                  {adminEmail}
+                </p>
+              )}
             </div>
           </div>
         </div>
