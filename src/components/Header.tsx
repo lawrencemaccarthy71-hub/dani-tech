@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
         {/* Brand Logo & Origin Tag */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => {
               onSelectCategory('all');
@@ -138,21 +138,21 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
 
         {/* Right Actions: Search, Theme Toggle, Currency, WhatsApp, Cart, Profile */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Quick Search */}
           <button
             onClick={onOpenSearch}
-            className="w-9 h-9 flex items-center justify-center rounded-full text-[#555558] dark:text-[#c2c6d8] hover:bg-black/5 dark:hover:bg-[#2a2a2c] hover:text-[#161618] dark:hover:text-white transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-[#555558] dark:text-[#c2c6d8] hover:bg-black/5 dark:hover:bg-[#2a2a2c] hover:text-[#161618] dark:hover:text-white transition-colors cursor-pointer shrink-0"
             aria-label="Search hardware"
             title="Search Products (Ctrl+K)"
           >
             <Search className="w-4 h-4" />
           </button>
 
-          {/* Theme Toggle — Sun / Moon */}
+          {/* Theme Toggle — Sun / Moon (Hidden on mobile portrait, managed in drawer) */}
           <button
             onClick={toggleTheme}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-black/5 dark:bg-[#201f21] hover:bg-black/10 dark:hover:bg-[#2a2a2c] text-[#161618] dark:text-[#e5e1e4] border border-black/5 dark:border-[#424656]/40 transition-all cursor-pointer shadow-sm"
+            className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full bg-black/5 dark:bg-[#201f21] hover:bg-black/10 dark:hover:bg-[#2a2a2c] text-[#161618] dark:text-[#e5e1e4] border border-black/5 dark:border-[#424656]/40 transition-all cursor-pointer shadow-sm shrink-0"
             title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             aria-label="Toggle Theme"
           >
@@ -163,8 +163,8 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Currency Picker — 4-Currency Dropdown */}
-          <div ref={currencyRef} className="relative">
+          {/* Currency Picker — 4-Currency Dropdown (Hidden on mobile portrait, managed in drawer) */}
+          <div ref={currencyRef} className="hidden sm:block relative shrink-0">
             <button
               onClick={() => setCurrencyMenuOpen((prev) => !prev)}
               className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/5 dark:bg-[#201f21] hover:bg-black/10 dark:hover:bg-[#2a2a2c] text-[#161618] dark:text-[#e5e1e4] text-[11px] font-mono border border-black/5 dark:border-[#424656]/40 transition-colors cursor-pointer"
@@ -204,7 +204,7 @@ export const Header: React.FC<HeaderProps> = ({
             href={`https://wa.me/${WHATSAPP_PHONE_RAW}?text=Hello%20Dani%20Tech,%20I%20have%20an%20inquiry%20about%20your%20hardware%20accessories`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/5 dark:bg-[#2a2a2c] hover:bg-black/10 dark:hover:bg-[#353437] text-[#161618] dark:text-[#e5e1e4] text-xs font-medium border border-black/5 dark:border-[#424656]/30 transition-all hover:border-[#00838f]/50 dark:hover:border-[#00dce6]/50"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/5 dark:bg-[#2a2a2c] hover:bg-black/10 dark:hover:bg-[#353437] text-[#161618] dark:text-[#e5e1e4] text-xs font-medium border border-black/5 dark:border-[#424656]/30 transition-all hover:border-[#00838f]/50 dark:hover:border-[#00dce6]/50 shrink-0"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#00838f] dark:bg-[#00dce6] animate-pulse"></span>
             <span>WhatsApp</span>
@@ -214,7 +214,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Wishlist / Stash Trigger */}
           <button
             onClick={onOpenWishlist}
-            className="relative flex items-center justify-center w-9 h-9 rounded-full bg-black/5 dark:bg-[#2a2a2c] hover:bg-black/10 dark:hover:bg-[#353437] text-[#161618] dark:text-white transition-colors cursor-pointer"
+            className="relative flex items-center justify-center w-9 h-9 rounded-full bg-black/5 dark:bg-[#2a2a2c] hover:bg-black/10 dark:hover:bg-[#353437] text-[#161618] dark:text-white transition-colors cursor-pointer shrink-0"
             aria-label="View saved setups (My Stash)"
             title="My Stash / Saved Hardware"
           >
@@ -229,7 +229,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Bag / Cart Trigger */}
           <button
             onClick={onOpenCart}
-            className="relative flex items-center justify-center w-9 h-9 rounded-full bg-black/5 dark:bg-[#2a2a2c] hover:bg-black/10 dark:hover:bg-[#353437] text-[#161618] dark:text-white transition-colors cursor-pointer"
+            className="relative flex items-center justify-center w-9 h-9 rounded-full bg-black/5 dark:bg-[#2a2a2c] hover:bg-black/10 dark:hover:bg-[#353437] text-[#161618] dark:text-white transition-colors cursor-pointer shrink-0"
             aria-label="View shopping bag"
             title="View Shopping Bag"
           >
@@ -241,21 +241,22 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* User Profile / Order Tracking Button */}
+          {/* User Profile / Order Tracking Button (Hidden on mobile portrait, managed in drawer) */}
           <button
             onClick={onOpenProfile}
-            className="w-8 h-8 rounded-full bg-[#0066ff]/15 dark:bg-[#b3c5ff] hover:opacity-90 flex items-center justify-center text-[#0066ff] dark:text-[#002b75] transition-all cursor-pointer"
+            className="hidden sm:flex w-8 h-8 rounded-full bg-[#0066ff]/15 dark:bg-[#b3c5ff] hover:opacity-90 items-center justify-center text-[#0066ff] dark:text-[#002b75] transition-all cursor-pointer shrink-0"
             aria-label="Order Status & Client Area"
             title="Order Status & Atelier Info"
           >
             <User className="w-4 h-4" />
           </button>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button (Trigram for Heaven ☰) */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full text-[#555558] dark:text-[#c2c6d8] hover:bg-black/5 dark:hover:bg-[#2a2a2c] hover:text-[#161618] dark:hover:text-white"
+            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full text-[#161618] dark:text-[#e5e1e4] hover:bg-black/5 dark:hover:bg-[#2a2a2c] transition-colors cursor-pointer shrink-0"
             aria-label="Toggle Navigation Menu"
+            title="Navigation Menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5 text-[#161618] dark:text-[#e5e1e4]" />}
           </button>
@@ -265,6 +266,27 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white/95 dark:bg-[#1c1b1d]/95 backdrop-blur-xl border-b border-black/10 dark:border-[#424656]/40 px-4 py-4 space-y-3 shadow-xl transition-colors">
+          {/* Mobile Profile & Order Status Shortcut */}
+          <button
+            onClick={() => {
+              setMobileMenuOpen(false);
+              onOpenProfile();
+            }}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-[#2a2a2c]/60 border border-black/5 dark:border-[#424656]/30 text-left cursor-pointer hover:bg-black/10 dark:hover:bg-[#2a2a2c] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-full bg-[#0066ff]/15 dark:bg-[#b3c5ff] flex items-center justify-center text-[#0066ff] dark:text-[#002b75]">
+                <User className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-xs font-medium text-[#161618] dark:text-[#e5e1e4]">
+                Account & Order Status
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-[#6e6e73] dark:text-[#8c90a1] uppercase tracking-wider">
+              Track & Atelier
+            </span>
+          </button>
+
           {/* Mobile Stash Shortcut */}
           <button
             onClick={() => {
